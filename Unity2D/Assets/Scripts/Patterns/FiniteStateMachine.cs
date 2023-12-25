@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Collections.Generic;
 
 namespace Patterns
 {
@@ -34,7 +32,7 @@ namespace Patterns
 
         public State<T> GetState(T stateID)
         {
-            if(mStates.ContainsKey(stateID))
+            if (mStates.ContainsKey(stateID))
                 return mStates[stateID];
             return null;
         }

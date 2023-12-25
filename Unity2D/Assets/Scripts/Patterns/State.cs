@@ -1,8 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-
-
-/// <summary>
+﻿/// <summary>
 /// Our objective is to implement a finite state machine using 
 /// the class based approach.
 /// 
@@ -59,7 +55,7 @@ namespace Patterns
             OnUpdate = onUpdate;
             OnFixedUpdate = onFixedUpdate;
         }
-        public State(T id, 
+        public State(T id,
             string name,
             DelegateNoArg onEnter,
             DelegateNoArg onExit = null,
