@@ -2,6 +2,9 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using Unity.Jobs;
+using Unity.Collections;
+using Unity.Burst;
 
 public class FlockBehaviour : MonoBehaviour
 {
@@ -33,6 +36,7 @@ public class FlockBehaviour : MonoBehaviour
     void Start()
     {
         // Randomize obstacles placement.
+        //obstacles are the asteroid on the map
         for (int i = 0; i < Obstacles.Length; ++i)
         {
             float x = Random.Range(Bounds.bounds.min.x, Bounds.bounds.max.x);
@@ -45,21 +49,29 @@ public class FlockBehaviour : MonoBehaviour
             mObstacles.Add(obs);
         }
 
+        //creates 2 flock of ships
+        //flock 1 is friendly ships which spawn 100 at the start
+        //flock 2 is enemy ships which spawns 20 at the start
         foreach (Flock flock in flocks)
         {
             CreateFlock(flock);
         }
 
+        //boid rules
         StartCoroutine(Coroutine_Flocking());
 
         StartCoroutine(Coroutine_Random());
         StartCoroutine(Coroutine_AvoidObstacles());
         StartCoroutine(Coroutine_SeparationWithEnemies());
+
+        //random movement of the obstacles on the map
         StartCoroutine(Coroutine_Random_Motion_Obstacles());
     }
 
+    //create a flock of the ships
     void CreateFlock(Flock flock)
     {
+        //spawn each ship in a random location
         for (int i = 0; i < flock.numBoids; ++i)
         {
             float x = Random.Range(Bounds.bounds.min.x, Bounds.bounds.max.x);
@@ -71,7 +83,10 @@ public class FlockBehaviour : MonoBehaviour
 
     void Update()
     {
+        //check input for player
         HandleInputs();
+
+
         Rule_CrossBorder();
         Rule_CrossBorder_Obstacles();
     }
@@ -90,6 +105,8 @@ public class FlockBehaviour : MonoBehaviour
         }
     }
 
+    //add the specified number of boids at random locations
+    //increase the number of boids in the count
     void AddBoids(int count)
     {
         for (int i = 0; i < count; ++i)
@@ -102,6 +119,9 @@ public class FlockBehaviour : MonoBehaviour
         flocks[0].numBoids += count;
     }
 
+    //add the boid into the game
+    //boid is spawned and a Autonomous component is added
+    //Autonomous component automates the boid logic
     void AddBoid(float x, float y, Flock flock)
     {
         GameObject obj = Instantiate(flock.PrefabBoid);
@@ -118,24 +138,32 @@ public class FlockBehaviour : MonoBehaviour
         return (a1.transform.position - a2.transform.position).magnitude;
     }
 
+    //maybe use the job system on this part
     void Execute(Flock flock, int i)
     {
+        //speed and direction would be incremented earlier so
+        //set to zero for now
+
+        //set an instance of each direction to zero
         Vector3 flockDir = Vector3.zero;
         Vector3 separationDir = Vector3.zero;
         Vector3 cohesionDir = Vector3.zero;
 
+        //set speeds to zero
         float speed = 0.0f;
         float separationSpeed = 0.0f;
 
-        int count = 0;
-        int separationCount = 0;
+        int count = 0; //number of boids in this group
+        //int separationCount = 0; //not being used?
         Vector3 steerPos = Vector3.zero;
 
-        Autonomous curr = flock.mAutonomous[i];
+        //goes through the list of boid
+        Autonomous curr = flock.mAutonomous[i]; //the current boid we are checking
         for (int j = 0; j < flock.numBoids; ++j)
         {
-            Autonomous other = flock.mAutonomous[j];
-            float dist = (curr.transform.position - other.transform.position).magnitude;
+            Autonomous other = flock.mAutonomous[j];//the boid we are checking against
+            
+            float dist = (curr.transform.position - other.transform.position).magnitude; //checking the distance between them
             if (i != j && dist < flock.visibility)
             {
                 speed += other.Speed;
@@ -156,6 +184,8 @@ public class FlockBehaviour : MonoBehaviour
                 }
             }
         }
+
+
         if (count > 0)
         {
             speed = speed / count;
@@ -165,12 +195,13 @@ public class FlockBehaviour : MonoBehaviour
             steerPos = steerPos / count;
         }
 
-        if (separationCount > 0)
-        {
-            separationSpeed = separationSpeed / count;
-            separationDir = separationDir / separationSpeed;
-            separationDir.Normalize();
-        }
+        //removed cus doesnt seem to be doing anything
+        //if (separationCount > 0)
+        //{
+        //    separationSpeed = separationSpeed / count;
+        //    separationDir = separationDir / separationSpeed;
+        //    separationDir.Normalize();
+        //}
 
         curr.TargetDirection =
           flockDir * speed * (flock.useAlignmentRule ? flock.weightAlignment : 0.0f) +
@@ -178,7 +209,9 @@ public class FlockBehaviour : MonoBehaviour
           (steerPos - curr.transform.position) * (flock.useCohesionRule ? flock.weightCohesion : 0.0f);
     }
 
+    #region TEMP HIDE
 
+    //BOID RULE : FLOCK TOGETHER
     IEnumerator Coroutine_Flocking()
     {
         while (true)
@@ -187,23 +220,24 @@ public class FlockBehaviour : MonoBehaviour
             {
                 foreach (Flock flock in flocks)
                 {
+                    //goes through the list of boids
                     List<Autonomous> autonomousList = flock.mAutonomous;
                     for (int i = 0; i < autonomousList.Count; ++i)
                     {
                         Execute(flock, i);
                         if (i % BatchSize == 0)
                         {
-                            yield return null;
+                            yield return null; // wait a frame for every 100 boids processed
                         }
                     }
-                    yield return null;
+                    yield return null; //wait a frame after processing one type of boid
                 }
             }
-            yield return new WaitForSeconds(TickDuration);
+            yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
         }
     }
 
-
+    //logic for boid to separate from enemies
     void SeparationWithEnemies_Internal(
       List<Autonomous> boids,
       List<Autonomous> enemies,
@@ -469,4 +503,8 @@ public class FlockBehaviour : MonoBehaviour
             }
         }
     }
+
+    #endregion
 }
+
+

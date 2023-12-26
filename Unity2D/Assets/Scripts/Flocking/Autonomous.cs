@@ -17,8 +17,10 @@ public class Autonomous : MonoBehaviour
     public Vector3 TargetDirection = Vector3.zero;
     public float RotationSpeed = 0.0f;
 
+
     public SpriteRenderer spriteRenderer;
 
+    #region Start functions
     // Start is called before the first frame update
     void Start()
     {
@@ -44,6 +46,7 @@ public class Autonomous : MonoBehaviour
     {
         spriteRenderer.color = c;
     }
+    #endregion
 
     // Update is called once per frame
     public void Update()
@@ -71,7 +74,7 @@ public class Autonomous : MonoBehaviour
 
         transform.Translate(Vector3.right * Speed * Time.deltaTime, Space.Self);
     }
-
+    #region hide
     private void FixedUpdate()
     {
     }
@@ -119,4 +122,5 @@ public class Autonomous : MonoBehaviour
           Random.Range(min.y, max.y),
           Random.Range(min.z, max.z));
     }
+    #endregion
 }
