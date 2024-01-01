@@ -105,6 +105,13 @@ public class FlockBehaviour : MonoBehaviour
         {
             AddBoids(BoidIncr);
         }
+
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            AutonomousData d = flocks[0].mAutonomousData[0];
+            Autonomous a = flocks[0].mAutonomous[0];
+            Debug.Log($"D = {d.TargetDirection} , A = {a.data.TargetDirection}");
+        }
     }
 
     //add the specified number of boids at random locations
@@ -132,11 +139,11 @@ public class FlockBehaviour : MonoBehaviour
         flock.mAutonomous.Add(boid);
 
         //add the data of the boid into the list of data
-        flock.mAutonomousData.Add(boid.data);
         boid.Initialize();
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
+        flock.mAutonomousData.Add(boid.data);
 
     }
 
@@ -166,6 +173,8 @@ public class FlockBehaviour : MonoBehaviour
 
         //goes through the list of boid
         Autonomous curr = flock.mAutonomous[i]; //the current boid we are checking
+
+        
         for (int j = 0; j < flock.numBoids; ++j)
         {
             Autonomous other = flock.mAutonomous[j];//the boid we are checking against
@@ -216,8 +225,6 @@ public class FlockBehaviour : MonoBehaviour
           (steerPos - curr.data.Position) * (flock.useCohesionRule ? flock.weightCohesion : 0.0f);
     }
 
-    #region TEMP HIDE
-
     //BOID RULE : FLOCK TOGETHER
     IEnumerator Coroutine_Flocking()
     {
@@ -229,9 +236,26 @@ public class FlockBehaviour : MonoBehaviour
                 {
                     //goes through the list of boids
                     List<Autonomous> autonomousList = flock.mAutonomous;
+                    //NativeArray<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeArray(Allocator.TempJob);
+                    //FlockJob job = new(dataNativeList,flock.visibility,flock.separationDistance,flock.weightSeparation,flock.weightAlignment,flock.weightCohesion
+                    //    ,flock.useAlignmentRule,flock.useSeparationRule,flock.useCohesionRule);
+                    //JobHandle jobHandle = job.Schedule(dataNativeList.Length,dataNativeList.Length);
+                    //jobHandle.Complete();
 
+                    ////copy data back
+                    //AutonomousData[] temp = new AutonomousData[dataNativeList.Length];
+                    //dataNativeList.CopyTo(temp);
+                    //flock.mAutonomousData = new(temp);
 
+                    //dataNativeList.Dispose();
 
+                    //for (int i = 0; i < autonomousList.Count; i++)
+                    //{
+                    //    autonomousList[i].data = flock.mAutonomousData[i];
+                    //    AutonomousData d = flocks[0].mAutonomousData[i];
+                    //    Autonomous a = flocks[0].mAutonomous[i];
+                    //    Debug.Log($"D = {d.TargetDirection} , A = {a.data.TargetDirection}");
+                    //}
 
                     for (int i = 0; i < autonomousList.Count; ++i)
                     {
@@ -247,7 +271,7 @@ public class FlockBehaviour : MonoBehaviour
             yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
         }
     }
-
+    #region TEMP HIDE
     //logic for boid to separate from enemies
     void SeparationWithEnemies_Internal(
       List<Autonomous> boids,
@@ -519,9 +543,88 @@ public class FlockBehaviour : MonoBehaviour
 
     public struct FlockJob : IJobParallelFor
     {
+        NativeArray<AutonomousData> dataList;
+        public float visibility;
+        public float separationDistance;
+        public float weightSeparation;
+        public float weightAlignment;
+        public float weightCohesion;
+        public bool useAlignmentRule;
+        public bool useSeparationRule;
+        public bool useCohesionRule;
         public void Execute(int index)
         {
-            throw new System.NotImplementedException();
+            Vector3 flockDir = Vector3.zero;
+            Vector3 separationDir = Vector3.zero;
+            Vector3 cohesionDir = Vector3.zero;
+
+            float speed = 0.0f;
+            float separationSpeed = 0.0f;
+
+            int count = 0; 
+            Vector3 steerPos = Vector3.zero;
+
+            //goes through the list of boid
+            AutonomousData curr = dataList[index]; //the current boid we are checking
+
+            for (int j = 0; j < dataList.Length; ++j)
+            {
+                AutonomousData other = dataList[j];//the boid we are checking against
+
+                float dist = (curr.Position - other.Position).magnitude; //checking the distance between them
+                if (index != j && dist < visibility)
+                {
+                    speed += other.Speed;
+                    flockDir += other.TargetDirection;
+                    steerPos += other.Position;
+                    count++;
+                }
+                if (index != j)
+                {
+                    if (dist < separationDistance)
+                    {
+                        Vector3 targetDirection = (
+                          curr.Position -
+                          other.Position).normalized;
+
+                        separationDir += targetDirection;
+                        separationSpeed += dist * weightSeparation;
+                    }
+                }
+            }
+
+            if (count > 0)
+            {
+                speed = speed / count;
+                flockDir = flockDir / count;
+                flockDir.Normalize();
+
+                steerPos = steerPos / count;
+            }
+
+            //curr.TargetDirection =
+            //    flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
+            //    separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
+            //    (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
+
+            Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
+                          separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
+                          (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
+            //Vector3 dir = new(0, 300, 0);
+            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,dir.normalized,curr.Position);
+        }
+
+        public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)
+        {
+            dataList = data;
+            visibility = vis;
+            separationDistance = sepD;
+            weightSeparation = weiS;
+            weightAlignment = weiA;
+            weightCohesion = weiC;
+            useAlignmentRule = aRule;
+            useSeparationRule = sRule;
+            useCohesionRule = cRule;
         }
     }
 }
