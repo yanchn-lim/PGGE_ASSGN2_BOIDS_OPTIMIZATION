@@ -52,6 +52,7 @@ MonoBehaviour:
   TargetDirection: {x: 0, y: 0, z: 0}
   RotationSpeed: 100
   data:
+    Id: 0
     MaxSpeed: 0
     Speed: 0
     TargetSpeed: 0
@@ -59,6 +60,7 @@ MonoBehaviour:
     Accel: {x: 0, y: 0}
     TargetDirection: {x: 0, y: 0, z: 0}
     Position: {x: 0, y: 0, z: 0}
+  id: 0
   spriteRenderer: {fileID: 547647229852513809}
 --- !u!96 &581381912042353831
 TrailRenderer:
@@ -102,7 +104,7 @@ TrailRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Time: 2
+  m_Time: 0.5
   m_PreviewTimeScale: 1
   m_Parameters:
     serializedVersion: 3
@@ -166,9 +168,9 @@ TrailRenderer:
     alignment: 0
     textureMode: 0
     textureScale: {x: 1, y: 1}
-    shadowBias: 0.5
+    shadowBias: 0
     generateLightingData: 0
-  m_MinVertexDistance: 0.1
+  m_MinVertexDistance: 1
   m_MaskInteraction: 0
   m_Autodestruct: 0
   m_Emitting: 1

@@ -144,81 +144,7 @@ public class FlockBehaviour : MonoBehaviour
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
-        flock.mAutonomousData.Add(boid.data);
         boidCount++;
-    }
-
-    //maybe use the job system on this part
-    void Execute(Flock flock, int i)
-    {
-        //speed and direction would be incremented earlier so
-        //set to zero for now
-
-        //set an instance of each direction to zero
-        Vector3 flockDir = Vector3.zero;
-        Vector3 separationDir = Vector3.zero;
-        Vector3 cohesionDir = Vector3.zero;
-
-        //set speeds to zero
-        float speed = 0.0f;
-        float separationSpeed = 0.0f;
-
-        int count = 0; //number of boids in this group
-        //int separationCount = 0; //not being used?
-        Vector3 steerPos = Vector3.zero;
-
-        //goes through the list of boid
-        Autonomous curr = flock.mAutonomous[i]; //the current boid we are checking
-
-        
-        for (int j = 0; j < flock.numBoids; ++j)
-        {
-            Autonomous other = flock.mAutonomous[j];//the boid we are checking against
-            
-            float dist = (curr.data.Position - other.data.Position).magnitude; //checking the distance between them
-            if (i != j && dist < flock.visibility)
-            {
-                speed += other.data.Speed;
-                flockDir += other.data.TargetDirection;
-                steerPos += other.data.Position;
-                count++;
-            }
-            if (i != j)
-            {
-                if (dist < flock.separationDistance)
-                {
-                    Vector3 targetDirection = (
-                      curr.data.Position -
-                      other.data.Position).normalized;
-
-                    separationDir += targetDirection;
-                    separationSpeed += dist * flock.weightSeparation;
-                }
-            }
-        }
-
-
-        if (count > 0)
-        {
-            speed = speed / count;
-            flockDir = flockDir / count;
-            flockDir.Normalize();
-
-            steerPos = steerPos / count;
-        }
-
-        //removed cus doesnt seem to be doing anything
-        //if (separationCount > 0)
-        //{
-        //    separationSpeed = separationSpeed / count;
-        //    separationDir = separationDir / separationSpeed;
-        //    separationDir.Normalize();
-        //}
-
-        curr.data.TargetDirection =
-          flockDir * speed * (flock.useAlignmentRule ? flock.weightAlignment : 0.0f) +
-          separationDir * separationSpeed * (flock.useSeparationRule ? flock.weightSeparation : 0.0f) +
-          (steerPos - curr.data.Position) * (flock.useCohesionRule ? flock.weightCohesion : 0.0f);
     }
 
     //BOID RULE : FLOCK TOGETHER
@@ -254,15 +180,6 @@ public class FlockBehaviour : MonoBehaviour
 
                     dataNativeList.Dispose();
 
-                    //for (int i = 0; i < autonomousList.Count; ++i)
-                    //{
-                    //    Execute(flock, i);
-                    //    if (i % BatchSize == 0)
-                    //    {
-                    //        yield return null; // wait a frame for every 100 boids processed
-                    //    }
-                    //}
-
                     yield return null; //wait a frame after processing one type of boid
                 }
             }
@@ -270,7 +187,6 @@ public class FlockBehaviour : MonoBehaviour
         }
     }
 
-    #region TEMP HIDE
     //logic for boid to separate from enemies
     void SeparationWithEnemies_Internal(
       List<Autonomous> boids,
@@ -308,16 +224,36 @@ public class FlockBehaviour : MonoBehaviour
             foreach (Flock flock in flocks)
             {
                 if (!flock.useFleeOnSightEnemyRule || flock.isPredator) continue;
+                NativeArray<AutonomousData> nativeAutoArray = new(flock.mAutonomous.Count, Allocator.TempJob);
+
+                for (int i = 0; i < flock.mAutonomous.Count; i++)
+                {
+                    nativeAutoArray[i] = flock.mAutonomous[i].data;
+                }
 
                 foreach (Flock enemies in flocks)
                 {
                     if (!enemies.isPredator) continue;
 
-                    SeparationWithEnemies_Internal(
-                      flock.mAutonomous,
-                      enemies.mAutonomous,
-                      flock.enemySeparationDistance,
-                      flock.weightFleeOnSightEnemy);
+                    NativeArray<AutonomousData> nativeEnemyArray = new(enemies.mAutonomous.Count, Allocator.TempJob);
+
+                    for (int i = 0; i < enemies.mAutonomous.Count; i++)
+                    {
+                        nativeEnemyArray[i] = enemies.mAutonomous[i].data;
+                    }
+
+                    AvoidEnemiesJob job = new(nativeAutoArray,nativeEnemyArray,flock.enemySeparationDistance,flock.weightFleeOnSightEnemy);
+                    JobHandle jobHandle = job.Schedule(nativeAutoArray.Length,nativeAutoArray.Length);
+                    jobHandle.Complete();
+
+                    for (int i = 0; i < nativeAutoArray.Length; i++)
+                    {
+                        flock.mAutonomous[i].data = nativeAutoArray[i];
+                    }
+
+                    nativeAutoArray.Dispose();
+                    nativeEnemyArray.Dispose();
+
                 }
                 //yield return null;
             }
@@ -334,30 +270,41 @@ public class FlockBehaviour : MonoBehaviour
                 if (flock.useAvoidObstaclesRule)
                 {
                     List<Autonomous> autonomousList = flock.mAutonomous;
-                    for (int i = 0; i < autonomousList.Count; ++i)
+                    NativeArray<AutonomousData> nativeAutoArray = new NativeArray<AutonomousData>(autonomousList.Count, Allocator.TempJob);
+                    NativeArray<AutonomousData> nativeObstacleArray = new NativeArray<AutonomousData>(mObstacles.Count, Allocator.TempJob);
+                    NativeArray<float> nativeFloatArray = new NativeArray<float>(mObstacles.Count, Allocator.TempJob);
+                    for (int i = 0; i < flock.mAutonomous.Count; i++)
                     {
-                        for (int j = 0; j < mObstacles.Count; ++j)
-                        {
-                            float dist = (
-                              mObstacles[j].transform.position -
-                              autonomousList[i].data.Position).magnitude;
-                            if (dist < mObstacles[j].AvoidanceRadius)
-                            {
-                                Vector3 targetDirection = (
-                                  autonomousList[i].data.Position -
-                                  mObstacles[j].transform.position).normalized;
-
-                                autonomousList[i].data.TargetDirection += targetDirection * flock.weightAvoidObstacles;
-                                autonomousList[i].data.TargetDirection.Normalize();
-                            }
-                        }
+                        var data = autonomousList[i].data;
+                        nativeAutoArray[i] = data;
                     }
+
+                    for (int i = 0; i < mObstacles.Count; i++)
+                    {
+                        nativeObstacleArray[i] = mObstacles[i].GetComponent<Autonomous>().data;
+                        nativeFloatArray[i] = mObstacles[i].AvoidanceRadius;
+                    }
+
+                    AvoidObstacleJob job = new(nativeAutoArray,nativeObstacleArray,nativeFloatArray,flock.weightAvoidObstacles);
+                    JobHandle jobHandle = job.Schedule(nativeAutoArray.Length,nativeAutoArray.Length);
+                    jobHandle.Complete();
+
+                    for (int i = 0; i < nativeAutoArray.Length; i++)
+                    {
+                        flock.mAutonomous[i].data = nativeAutoArray[i];
+                    }
+
+                    nativeAutoArray.Dispose();
+                    nativeObstacleArray.Dispose();
+                    nativeFloatArray.Dispose();
                 }
-                //yield return null;
+                yield return null;
             }
             yield return null;
         }
     }
+
+    #region TEMP HIDE
     IEnumerator Coroutine_Random_Motion_Obstacles()
     {
         while (true)
@@ -546,14 +493,23 @@ public class FlockBehaviour : MonoBehaviour
     public struct FlockJob : IJobParallelFor
     {
         NativeArray<AutonomousData> dataList;
-        public float visibility;
-        public float separationDistance;
-        public float weightSeparation;
-        public float weightAlignment;
-        public float weightCohesion;
-        public bool useAlignmentRule;
-        public bool useSeparationRule;
-        public bool useCohesionRule;
+        [ReadOnly]
+        float visibility;
+        [ReadOnly]
+        float separationDistance;
+        [ReadOnly]
+        float weightSeparation;
+        [ReadOnly]
+        float weightAlignment;
+        [ReadOnly]
+        float weightCohesion;
+        [ReadOnly]
+        bool useAlignmentRule;
+        [ReadOnly]
+        bool useSeparationRule;
+        [ReadOnly]
+        bool useCohesionRule;
+
         public void Execute(int index)
         {
             Vector3 flockDir = Vector3.zero;
@@ -625,6 +581,99 @@ public class FlockBehaviour : MonoBehaviour
             useAlignmentRule = aRule;
             useSeparationRule = sRule;
             useCohesionRule = cRule;
+        }
+    }
+
+    [BurstCompile]
+    public struct AvoidObstacleJob : IJobParallelFor
+    {
+        NativeArray<AutonomousData> autonomousList;
+        [ReadOnly]
+        NativeArray<AutonomousData> mObstacles;
+        [ReadOnly]
+        NativeArray<float> avoidanceRadiusArray;
+        [ReadOnly]
+        float weightAvoidObstacles;
+
+        public void Execute(int index)
+        {
+            for (int j = 0; j < mObstacles.Length; ++j)
+            {
+                float dist = (
+                  mObstacles[j].Position -
+                  autonomousList[index].Position).magnitude;
+
+                if (dist < avoidanceRadiusArray[j])
+                {
+                    Vector3 targetDirection = (
+                      autonomousList[index].Position -
+                      mObstacles[j].Position).normalized;
+
+
+                    Vector3 dir = autonomousList[index].TargetDirection;
+                    dir += targetDirection * weightAvoidObstacles;
+                    dir.Normalize();
+
+                    autonomousList[index] = new(autonomousList[index].Id, autonomousList[index].MaxSpeed, autonomousList[index].Speed,
+                        autonomousList[index].TargetSpeed, autonomousList[index].RotationSpeed, autonomousList[index].Accel, 
+                        dir, autonomousList[index].Position);
+                }
+            }
+        }
+
+        public AvoidObstacleJob(
+            NativeArray<AutonomousData> autonomousList,
+            NativeArray<AutonomousData> mObstacles,
+            NativeArray<float> avoidanceRadiusArray,
+            float weightAvoidObstacles
+            )
+        {
+            this.autonomousList = autonomousList;
+            this.mObstacles = mObstacles;
+            this.avoidanceRadiusArray = avoidanceRadiusArray;
+            this.weightAvoidObstacles = weightAvoidObstacles;
+        }
+    }
+
+    [BurstCompile]
+    public struct AvoidEnemiesJob : IJobParallelFor
+    {
+        NativeArray<AutonomousData> boids;
+
+        [ReadOnly]
+        NativeArray<AutonomousData> enemies;
+        [ReadOnly]
+        float sepDist;
+        [ReadOnly]
+        float sepWeight;
+
+        public void Execute(int index)
+        {          
+            for (int j = 0; j < enemies.Length; ++j)
+            {
+                float dist = (
+                  enemies[j].Position -
+                  boids[index].Position).magnitude;
+                if (dist < sepDist)
+                {
+                    Vector3 targetDirection = ((boids[index].Position -enemies[j].Position) + boids[index].TargetDirection).normalized;
+
+                    float speed = boids[index].TargetSpeed + dist * sepWeight;
+                    speed /= 2.0f;
+
+                    boids[index] = new(boids[index].Id, boids[index].MaxSpeed, boids[index].Speed,
+                        speed, boids[index].RotationSpeed, boids[index].Accel,
+                        targetDirection, boids[index].Position);
+                }
+            }
+        }
+
+        public AvoidEnemiesJob(NativeArray<AutonomousData> boids, NativeArray<AutonomousData> enemies,float sepDist,float sepWeight)
+        {
+            this.boids = boids;
+            this.enemies = enemies;
+            this.sepDist = sepDist;
+            this.sepWeight = sepWeight;
         }
     }
 }
