@@ -1,5 +1,7 @@
 using System.Collections;
 using UnityEngine;
+using Unity.Jobs;
+using Unity.Burst;
 
 public class Autonomous : MonoBehaviour
 {
@@ -58,10 +60,21 @@ public class Autonomous : MonoBehaviour
 
         //data = new(MaxSpeed, Speed, TargetSpeed, RotationSpeed, accel, TargetDirection, transform.position);
     }
+
+    public void LateInit()
+    {
+        //StartCoroutine(Move());
+        //data.Speed = 100f;
+    }
     #endregion
 
     // Update is called once per frame
-    public void Update()
+    private void Update()
+    {
+        MoveObj();
+    }
+
+    private void MoveObj()
     {
         transform.position = data.Position;
 
@@ -90,9 +103,29 @@ public class Autonomous : MonoBehaviour
         data.Position = transform.position;
     }
 
+    IEnumerator Move()
+    {
+        while (true)
+        {
+            transform.position = data.Position;
+            transform.rotation = data.Rotation;
+            //Debug.Log("Before" + data.Speed);
+            MoveJob job = new(data,Time.deltaTime);
+            JobHandle jobHandle = job.Schedule();
+            jobHandle.Complete();
+
+            //Debug.Log(data.Speed);
+            transform.Translate(Vector3.right * data.Speed * Time.deltaTime, Space.Self);
+            data.Position = transform.position;
+            data.Rotation = transform.rotation;
+            yield return null;
+        }
+    }
+
 }
 
-[System.Serializable]
+
+[System.Serializable,BurstCompile]
 public struct AutonomousData
 {
     public int Id;
@@ -103,8 +136,9 @@ public struct AutonomousData
     public Vector2 Accel;
     public Vector3 TargetDirection;
     public Vector3 Position;
+    public Quaternion Rotation;
 
-    public AutonomousData(int Id, float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos)
+    public AutonomousData(int Id, float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos,Quaternion rot)
     {
         this.Id = Id;
         MaxSpeed = maxSpd;
@@ -114,5 +148,44 @@ public struct AutonomousData
         Accel = accel;
         TargetDirection = tarDir;
         Position = pos;
+        Rotation = rot;
+    }
+}
+
+[BurstCompile]
+public struct MoveJob : IJob
+{
+    AutonomousData data;
+    float deltaTime;
+    public void Execute()
+    {
+        Vector3 targetDirection = data.TargetDirection;
+        targetDirection.Normalize();
+
+        Vector3 rotatedVectorToTarget =
+          Quaternion.Euler(0, 0, 90) *
+          targetDirection;
+
+        Quaternion targetRotation = Quaternion.LookRotation(
+          forward: Vector3.forward,
+          upwards: rotatedVectorToTarget);
+
+        Quaternion rot = Quaternion.RotateTowards(
+          data.Rotation,
+          targetRotation,
+          data.RotationSpeed * deltaTime);
+
+        float Speed = data.Speed + ((data.TargetSpeed - data.Speed) / 10.0f) * deltaTime;
+
+        if (Speed > data.MaxSpeed)
+            Speed = data.MaxSpeed;
+
+        data = new(data.Id, data.MaxSpeed, Speed, data.TargetSpeed, data.RotationSpeed, data.Accel, targetDirection, data.Position, rot);
+    }
+
+    public MoveJob(AutonomousData data,float time)
+    {
+        this.data = data;
+        deltaTime = time;
     }
 }

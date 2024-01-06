@@ -144,6 +144,8 @@ public class FlockBehaviour : MonoBehaviour
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
+        boid.data.Rotation = boid.transform.rotation;
+        boid.LateInit();
         boidCount++;
     }
 
@@ -184,36 +186,6 @@ public class FlockBehaviour : MonoBehaviour
                 }
             }
             yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
-        }
-    }
-
-    //logic for boid to separate from enemies
-    void SeparationWithEnemies_Internal(
-      List<Autonomous> boids,
-      List<Autonomous> enemies,
-      float sepDist,
-      float sepWeight)
-    {
-        for (int i = 0; i < boids.Count; ++i)
-        {
-            for (int j = 0; j < enemies.Count; ++j)
-            {
-                float dist = (
-                  enemies[j].data.Position -
-                  boids[i].data.Position).magnitude;
-                if (dist < sepDist)
-                {
-                    Vector3 targetDirection = (
-                      boids[i].data.Position -
-                      enemies[j].data.Position).normalized;
-
-                    boids[i].data.TargetDirection += targetDirection;
-                    boids[i].data.TargetDirection.Normalize();
-
-                    boids[i].data.TargetSpeed += dist * sepWeight;
-                    boids[i].data.TargetSpeed /= 2.0f;
-                }
-            }
         }
     }
 
@@ -304,7 +276,6 @@ public class FlockBehaviour : MonoBehaviour
         }
     }
 
-    #region TEMP HIDE
     IEnumerator Coroutine_Random_Motion_Obstacles()
     {
         while (true)
@@ -339,6 +310,7 @@ public class FlockBehaviour : MonoBehaviour
             yield return new WaitForSeconds(2.0f);
         }
     }
+
     IEnumerator Coroutine_Random()
     {
         while (true)
@@ -487,12 +459,14 @@ public class FlockBehaviour : MonoBehaviour
         }
     }
 
-    #endregion
 
+
+    #region JOBS
     [BurstCompile]
     public struct FlockJob : IJobParallelFor
     {
         NativeArray<AutonomousData> dataList;
+
         [ReadOnly]
         float visibility;
         [ReadOnly]
@@ -567,7 +541,7 @@ public class FlockBehaviour : MonoBehaviour
             curr.TargetDirection = dir;
             curr.TargetDirection.Normalize();
             
-            dataList[index] = new(curr.Id,curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position);
+            dataList[index] = new(curr.Id,curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position,curr.Rotation);
         }
 
         public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)
@@ -616,7 +590,7 @@ public class FlockBehaviour : MonoBehaviour
 
                     autonomousList[index] = new(autonomousList[index].Id, autonomousList[index].MaxSpeed, autonomousList[index].Speed,
                         autonomousList[index].TargetSpeed, autonomousList[index].RotationSpeed, autonomousList[index].Accel, 
-                        dir, autonomousList[index].Position);
+                        dir, autonomousList[index].Position,autonomousList[index].Rotation);
                 }
             }
         }
@@ -640,6 +614,7 @@ public class FlockBehaviour : MonoBehaviour
     {
         NativeArray<AutonomousData> boids;
 
+        //set these to readonly to avoid and modification
         [ReadOnly]
         NativeArray<AutonomousData> enemies;
         [ReadOnly]
@@ -648,7 +623,10 @@ public class FlockBehaviour : MonoBehaviour
         float sepWeight;
 
         public void Execute(int index)
-        {          
+        {   
+            //took the internal loop from the original method and implemented as a job
+            //most of the working are still the same with some modified parts to fit into
+            //the job system
             for (int j = 0; j < enemies.Length; ++j)
             {
                 float dist = (
@@ -661,9 +639,10 @@ public class FlockBehaviour : MonoBehaviour
                     float speed = boids[index].TargetSpeed + dist * sepWeight;
                     speed /= 2.0f;
 
+                    //create a new boid data with the modified variables
                     boids[index] = new(boids[index].Id, boids[index].MaxSpeed, boids[index].Speed,
                         speed, boids[index].RotationSpeed, boids[index].Accel,
-                        targetDirection, boids[index].Position);
+                        targetDirection, boids[index].Position,boids[index].Rotation);
                 }
             }
         }
@@ -676,6 +655,7 @@ public class FlockBehaviour : MonoBehaviour
             this.sepWeight = sepWeight;
         }
     }
+    #endregion
 }
 
 
