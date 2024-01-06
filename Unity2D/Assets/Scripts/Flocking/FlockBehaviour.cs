@@ -107,6 +107,11 @@ public class FlockBehaviour : MonoBehaviour
         {
             AddBoids(BoidIncr);
         }
+
+        if (Input.GetKeyDown(KeyCode.X))
+        {
+            
+        }
     }
 
     //add the specified number of boids at random locations
@@ -227,14 +232,24 @@ public class FlockBehaviour : MonoBehaviour
                 {
                     //goes through the list of boids
                     List<Autonomous> autonomousList = flock.mAutonomous;
-                    NativeArray<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeArray(Allocator.TempJob);
+                    NativeArray<AutonomousData> dataNativeList = new NativeArray<AutonomousData>(flock.mAutonomous.Count,Allocator.TempJob);
+
+                    for (int i = 0; i < flock.mAutonomous.Count; i++)
+                    {
+                        var data = autonomousList[i].data;
+                        dataNativeList[i] = data;
+                    }
+
+                    //NativeList<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeList(Allocator.TempJob);
                     FlockJob job = new(dataNativeList, flock.visibility, flock.separationDistance, flock.weightSeparation, flock.weightAlignment, flock.weightCohesion
                         , flock.useAlignmentRule, flock.useSeparationRule, flock.useCohesionRule);
+
                     JobHandle jobHandle = job.Schedule(dataNativeList.Length, dataNativeList.Length);
                     jobHandle.Complete();
+
                     for (int i = 0; i < dataNativeList.Length; i++)
                     {
-                        flock.mAutonomousData[i] = dataNativeList[i];
+                        flock.mAutonomous[i].data = dataNativeList[i];
                     }
 
                     if (!flock.isPredator)
@@ -599,12 +614,12 @@ public class FlockBehaviour : MonoBehaviour
                 steerPos = steerPos / count;
             }
 
-            //Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
-            //              separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
-            //              (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
-            Vector3 dir = new(0, 300, 0);
+            Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
+                          separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
+                          (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
+            //Vector3 dir = new(0, 300, 0);
 
-            curr.TargetDirection += dir;
+            curr.TargetDirection = dir;
             curr.TargetDirection.Normalize();
             
             dataList[index] = new(curr.Id,curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position);

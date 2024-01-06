@@ -64,7 +64,10 @@ public class Autonomous : MonoBehaviour
     public void Update()
     {
         transform.position = data.Position;
-
+        if(data.Id == 0)
+        {
+            Debug.Log(data.TargetDirection);
+        }
         Vector3 targetDirection = data.TargetDirection;
         targetDirection.Normalize();
 
