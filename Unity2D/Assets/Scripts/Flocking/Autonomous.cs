@@ -4,7 +4,6 @@ using UnityEngine;
 public class Autonomous : MonoBehaviour
 {
     public float MaxSpeed = 10.0f;
-
     public float Speed
     {
         get;
@@ -12,13 +11,12 @@ public class Autonomous : MonoBehaviour
     } = 0.0f;
 
     public Vector2 accel = new Vector2(0.0f, 0.0f);
-
     public float TargetSpeed = 0.0f;
     public Vector3 TargetDirection = Vector3.zero;
     public float RotationSpeed = 0.0f;
 
     public AutonomousData data;
-
+    public int id;
 
     public SpriteRenderer spriteRenderer;
 
@@ -70,6 +68,8 @@ public class Autonomous : MonoBehaviour
         Vector3 targetDirection = data.TargetDirection;
         targetDirection.Normalize();
 
+        //Debug.Log(targetDirection);
+
         Vector3 rotatedVectorToTarget =
           Quaternion.Euler(0, 0, 90) *
           targetDirection;
@@ -92,60 +92,12 @@ public class Autonomous : MonoBehaviour
         data.Position = transform.position;
     }
 
-    #region hide
-    private void FixedUpdate()
-    {
-    }
-
-    private IEnumerator Coroutine_LerpTargetSpeed(
-      float start,
-      float end,
-      float seconds = 2.0f)
-    {
-        float elapsedTime = 0;
-        while (elapsedTime < seconds)
-        {
-            data.Speed = Mathf.Lerp(
-              start,
-              end,
-              (elapsedTime / seconds));
-            elapsedTime += Time.deltaTime;
-
-            yield return null;
-        }
-        data.Speed = end;
-    }
-
-    private IEnumerator Coroutine_LerpTargetSpeedCont(
-    float seconds = 2.0f)
-    {
-        float elapsedTime = 0;
-        while (elapsedTime < seconds)
-        {
-            data.Speed = Mathf.Lerp(
-              data.Speed,
-              data.TargetSpeed,
-              (elapsedTime / seconds));
-            elapsedTime += Time.deltaTime;
-
-            yield return null;
-        }
-        data.Speed = data.TargetSpeed;
-    }
-
-    static public Vector3 GetRandom(Vector3 min, Vector3 max)
-    {
-        return new Vector3(
-          Random.Range(min.x, max.x),
-          Random.Range(min.y, max.y),
-          Random.Range(min.z, max.z));
-    }
-    #endregion
 }
 
 [System.Serializable]
 public struct AutonomousData
 {
+    public int Id;
     public float MaxSpeed;
     public float Speed;
     public float TargetSpeed;
@@ -154,8 +106,9 @@ public struct AutonomousData
     public Vector3 TargetDirection;
     public Vector3 Position;
 
-    public AutonomousData(float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos)
+    public AutonomousData(int Id, float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos)
     {
+        this.Id = Id;
         MaxSpeed = maxSpd;
         Speed = spd;
         TargetSpeed = tarSpd;

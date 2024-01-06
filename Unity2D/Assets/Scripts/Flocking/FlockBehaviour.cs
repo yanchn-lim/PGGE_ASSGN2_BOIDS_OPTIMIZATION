@@ -23,6 +23,8 @@ public class FlockBehaviour : MonoBehaviour
     public int BoidIncr = 100;
     public bool useFlocking = false;
     public int BatchSize = 100;
+    int boidCount = 0;
+
 
     public List<Flock> flocks = new List<Flock>();
     void Reset()
@@ -105,13 +107,6 @@ public class FlockBehaviour : MonoBehaviour
         {
             AddBoids(BoidIncr);
         }
-
-        if (Input.GetKeyDown(KeyCode.X))
-        {
-            AutonomousData d = flocks[0].mAutonomousData[0];
-            Autonomous a = flocks[0].mAutonomous[0];
-            Debug.Log($"D = {d.TargetDirection} , A = {a.data.TargetDirection}");
-        }
     }
 
     //add the specified number of boids at random locations
@@ -140,16 +135,12 @@ public class FlockBehaviour : MonoBehaviour
 
         //add the data of the boid into the list of data
         boid.Initialize();
+        boid.data.Id = boidCount;
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
         flock.mAutonomousData.Add(boid.data);
-
-    }
-
-    static float Distance(Autonomous a1, Autonomous a2)
-    {
-        return (a1.transform.position - a2.transform.position).magnitude;
+        boidCount++;
     }
 
     //maybe use the job system on this part
@@ -236,41 +227,44 @@ public class FlockBehaviour : MonoBehaviour
                 {
                     //goes through the list of boids
                     List<Autonomous> autonomousList = flock.mAutonomous;
-                    //NativeArray<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeArray(Allocator.TempJob);
-                    //FlockJob job = new(dataNativeList,flock.visibility,flock.separationDistance,flock.weightSeparation,flock.weightAlignment,flock.weightCohesion
-                    //    ,flock.useAlignmentRule,flock.useSeparationRule,flock.useCohesionRule);
-                    //JobHandle jobHandle = job.Schedule(dataNativeList.Length,dataNativeList.Length);
-                    //jobHandle.Complete();
+                    NativeArray<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeArray(Allocator.TempJob);
+                    FlockJob job = new(dataNativeList, flock.visibility, flock.separationDistance, flock.weightSeparation, flock.weightAlignment, flock.weightCohesion
+                        , flock.useAlignmentRule, flock.useSeparationRule, flock.useCohesionRule);
+                    JobHandle jobHandle = job.Schedule(dataNativeList.Length, dataNativeList.Length);
+                    jobHandle.Complete();
+                    for (int i = 0; i < dataNativeList.Length; i++)
+                    {
+                        flock.mAutonomousData[i] = dataNativeList[i];
+                    }
 
-                    ////copy data back
-                    //AutonomousData[] temp = new AutonomousData[dataNativeList.Length];
-                    //dataNativeList.CopyTo(temp);
-                    //flock.mAutonomousData = new(temp);
+                    if (!flock.isPredator)
+                    {
+                        Debug.Log($"{flock.mAutonomousData[0].Id}, {flock.mAutonomousData[0].TargetDirection}");
+                        Debug.Log($"{dataNativeList[0].Id}, {dataNativeList[0].TargetDirection}");
+                    }
 
-                    //dataNativeList.Dispose();
+                    dataNativeList.Dispose();
 
-                    //for (int i = 0; i < autonomousList.Count; i++)
+                    if (!flock.isPredator)
+                    {
+                        Debug.Log($"{flock.mAutonomousData[0].Id}, {flock.mAutonomousData[0].TargetDirection}");
+                    }
+                    //for (int i = 0; i < autonomousList.Count; ++i)
                     //{
-                    //    autonomousList[i].data = flock.mAutonomousData[i];
-                    //    AutonomousData d = flocks[0].mAutonomousData[i];
-                    //    Autonomous a = flocks[0].mAutonomous[i];
-                    //    Debug.Log($"D = {d.TargetDirection} , A = {a.data.TargetDirection}");
+                    //    Execute(flock, i);
+                    //    if (i % BatchSize == 0)
+                    //    {
+                    //        yield return null; // wait a frame for every 100 boids processed
+                    //    }
                     //}
 
-                    for (int i = 0; i < autonomousList.Count; ++i)
-                    {
-                        Execute(flock, i);
-                        if (i % BatchSize == 0)
-                        {
-                            yield return null; // wait a frame for every 100 boids processed
-                        }
-                    }
                     yield return null; //wait a frame after processing one type of boid
                 }
             }
             yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
         }
     }
+
     #region TEMP HIDE
     //logic for boid to separate from enemies
     void SeparationWithEnemies_Internal(
@@ -434,6 +428,7 @@ public class FlockBehaviour : MonoBehaviour
             yield return new WaitForSeconds(TickDurationRandom);
         }
     }
+
     void Rule_CrossBorder_Obstacles()
     {
         for (int i = 0; i < Obstacles.Length; ++i)
@@ -443,6 +438,7 @@ public class FlockBehaviour : MonoBehaviour
             if (autono.data.Position.x > Bounds.bounds.max.x)
             {
                 pos.x = Bounds.bounds.min.x;
+                
             }
             if (autono.data.Position.x < Bounds.bounds.min.x)
             {
@@ -541,6 +537,7 @@ public class FlockBehaviour : MonoBehaviour
 
     #endregion
 
+    [BurstCompile]
     public struct FlockJob : IJobParallelFor
     {
         NativeArray<AutonomousData> dataList;
@@ -602,16 +599,15 @@ public class FlockBehaviour : MonoBehaviour
                 steerPos = steerPos / count;
             }
 
-            //curr.TargetDirection =
-            //    flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
-            //    separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
-            //    (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
+            //Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
+            //              separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
+            //              (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
+            Vector3 dir = new(0, 300, 0);
 
-            Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
-                          separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
-                          (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
-            //Vector3 dir = new(0, 300, 0);
-            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,dir.normalized,curr.Position);
+            curr.TargetDirection += dir;
+            curr.TargetDirection.Normalize();
+            
+            dataList[index] = new(curr.Id,curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position);
         }
 
         public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)

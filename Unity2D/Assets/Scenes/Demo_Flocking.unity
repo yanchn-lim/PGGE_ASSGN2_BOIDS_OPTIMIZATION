@@ -1281,7 +1281,7 @@ MonoBehaviour:
   flocks:
   - PrefabBoid: {fileID: 1138522166324048232, guid: 1b7bb4e6c0d12884c97216ff0bcde98f, type: 3}
     name: Boids
-    numBoids: 1
+    numBoids: 100
     isPredator: 0
     colour: {r: 1, g: 1, b: 1, a: 1}
     maxSpeed: 25
@@ -1306,7 +1306,7 @@ MonoBehaviour:
     mAutonomousData: []
   - PrefabBoid: {fileID: 389496565818785944, guid: 7bc84c9bd85bd9342ba24c647efb0df1, type: 3}
     name: Predators
-    numBoids: 0
+    numBoids: 1
     isPredator: 1
     colour: {r: 1, g: 1, b: 1, a: 1}
     maxSpeed: 20
