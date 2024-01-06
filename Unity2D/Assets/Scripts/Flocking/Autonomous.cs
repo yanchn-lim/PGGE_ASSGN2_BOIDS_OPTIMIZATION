@@ -64,14 +64,9 @@ public class Autonomous : MonoBehaviour
     public void Update()
     {
         transform.position = data.Position;
-        if(data.Id == 0)
-        {
-            Debug.Log(data.TargetDirection);
-        }
+
         Vector3 targetDirection = data.TargetDirection;
         targetDirection.Normalize();
-
-        //Debug.Log(targetDirection);
 
         Vector3 rotatedVectorToTarget =
           Quaternion.Euler(0, 0, 90) *

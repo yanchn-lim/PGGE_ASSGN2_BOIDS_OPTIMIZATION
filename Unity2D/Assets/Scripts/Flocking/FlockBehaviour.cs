@@ -240,7 +240,6 @@ public class FlockBehaviour : MonoBehaviour
                         dataNativeList[i] = data;
                     }
 
-                    //NativeList<AutonomousData> dataNativeList = flock.mAutonomousData.ToNativeList(Allocator.TempJob);
                     FlockJob job = new(dataNativeList, flock.visibility, flock.separationDistance, flock.weightSeparation, flock.weightAlignment, flock.weightCohesion
                         , flock.useAlignmentRule, flock.useSeparationRule, flock.useCohesionRule);
 
@@ -252,18 +251,9 @@ public class FlockBehaviour : MonoBehaviour
                         flock.mAutonomous[i].data = dataNativeList[i];
                     }
 
-                    if (!flock.isPredator)
-                    {
-                        Debug.Log($"{flock.mAutonomousData[0].Id}, {flock.mAutonomousData[0].TargetDirection}");
-                        Debug.Log($"{dataNativeList[0].Id}, {dataNativeList[0].TargetDirection}");
-                    }
 
                     dataNativeList.Dispose();
 
-                    if (!flock.isPredator)
-                    {
-                        Debug.Log($"{flock.mAutonomousData[0].Id}, {flock.mAutonomousData[0].TargetDirection}");
-                    }
                     //for (int i = 0; i < autonomousList.Count; ++i)
                     //{
                     //    Execute(flock, i);
@@ -617,7 +607,6 @@ public class FlockBehaviour : MonoBehaviour
             Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
                           separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
                           (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
-            //Vector3 dir = new(0, 300, 0);
 
             curr.TargetDirection = dir;
             curr.TargetDirection.Normalize();
