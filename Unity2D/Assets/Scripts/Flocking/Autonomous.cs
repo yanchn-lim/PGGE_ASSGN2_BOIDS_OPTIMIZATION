@@ -18,9 +18,10 @@ public class Autonomous : MonoBehaviour
     public float RotationSpeed = 0.0f;
 
     public AutonomousData data;
-    public int id;
 
     public SpriteRenderer spriteRenderer;
+    public AutonomousType type;
+    public Rect bounds;
 
     #region Start functions
     // Start is called before the first frame update
@@ -71,7 +72,13 @@ public class Autonomous : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
+        bounds.position = new(transform.position.x-(bounds.width/2),transform.position.y-(bounds.height/2));
         MoveObj();
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(new(bounds.center.x,bounds.center.y),new(bounds.size.x,bounds.size.y));
     }
 
     private void MoveObj()
@@ -128,7 +135,6 @@ public class Autonomous : MonoBehaviour
 [System.Serializable,BurstCompile]
 public struct AutonomousData
 {
-    public int Id;
     public float MaxSpeed;
     public float Speed;
     public float TargetSpeed;
@@ -138,9 +144,8 @@ public struct AutonomousData
     public Vector3 Position;
     public Quaternion Rotation;
 
-    public AutonomousData(int Id, float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos,Quaternion rot)
+    public AutonomousData(float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos,Quaternion rot)
     {
-        this.Id = Id;
         MaxSpeed = maxSpd;
         Speed = spd;
         TargetSpeed = tarSpd;
@@ -180,7 +185,7 @@ public struct MoveJob : IJob
         if (Speed > data.MaxSpeed)
             Speed = data.MaxSpeed;
 
-        data = new(data.Id, data.MaxSpeed, Speed, data.TargetSpeed, data.RotationSpeed, data.Accel, targetDirection, data.Position, rot);
+        data = new(data.MaxSpeed, Speed, data.TargetSpeed, data.RotationSpeed, data.Accel, targetDirection, data.Position, rot);
     }
 
     public MoveJob(AutonomousData data,float time)
@@ -188,4 +193,11 @@ public struct MoveJob : IJob
         this.data = data;
         deltaTime = time;
     }
+}
+
+public enum AutonomousType
+{
+    OBSTACLE,
+    FRIENDLY,
+    ENEMY
 }

@@ -23,10 +23,11 @@ public class FlockBehaviour : MonoBehaviour
     public int BoidIncr = 100;
     public bool useFlocking = false;
     public int BatchSize = 100;
-    int boidCount = 0;
-
 
     public List<Flock> flocks = new List<Flock>();
+    public QuadTree quadTree;
+    Autonomous test;
+    Rect rect;
     void Reset()
     {
         flocks = new List<Flock>()
@@ -35,8 +36,20 @@ public class FlockBehaviour : MonoBehaviour
         };
     }
 
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireCube(rect.center, rect.size);
+        Gizmos.DrawCube(test.bounds.center,test.bounds.size);
+    }
+
     void Start()
     {
+        Vector2 pos = new(Bounds.transform.position.x - (Bounds.bounds.size.x)
+            , Bounds.transform.position.y - (Bounds.bounds.size.y));
+        rect = new(Bounds.transform.position, Bounds.bounds.size);
+        quadTree = new(rect, new(flocks[0].visibility, flocks[0].visibility));
+
         // Randomize obstacles placement.
         //obstacles are the asteroid on the map
         for (int i = 0; i < Obstacles.Length; ++i)
@@ -49,8 +62,10 @@ public class FlockBehaviour : MonoBehaviour
             autono.data.Position = new Vector3(x, y, 0.0f);
 
             autono.data.MaxSpeed = 1.0f;
+            autono.type = AutonomousType.OBSTACLE;
             obs.mCollider = Obstacles[i].GetComponent<CircleCollider2D>();
             mObstacles.Add(obs);
+            //quadTree.Insert(autono,quadTree.Root);
         }
 
         //creates 2 flock of ships
@@ -60,7 +75,7 @@ public class FlockBehaviour : MonoBehaviour
         {
             CreateFlock(flock);
         }
-
+        test = flocks[0].mAutonomous[0];
         //boid rules
         StartCoroutine(Coroutine_Flocking());
 
@@ -110,6 +125,11 @@ public class FlockBehaviour : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.X))
         {
+            ///Debug.Log(quadTree.FindNode(quadTree.Root, flocks[0].mAutonomous[0].transform.position).depth);
+
+            Debug.Log(flocks[0].mAutonomous[0].name);
+            Debug.Log(Bounds.bounds.Contains(flocks[0].mAutonomous[0].transform.position));
+            quadTree.Insert(flocks[0].mAutonomous[0], quadTree.Root);
             
         }
     }
@@ -124,6 +144,7 @@ public class FlockBehaviour : MonoBehaviour
             float y = Random.Range(Bounds.bounds.min.y, Bounds.bounds.max.y);
 
             AddBoid(x, y, flocks[0]);
+
         }
         flocks[0].numBoids += count;
     }
@@ -140,13 +161,18 @@ public class FlockBehaviour : MonoBehaviour
 
         //add the data of the boid into the list of data
         boid.Initialize();
-        boid.data.Id = boidCount;
+        //assign the data
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
         boid.data.Rotation = boid.transform.rotation;
-        boid.LateInit();
-        boidCount++;
+        boid.bounds = new(boid.transform.position,new(flock.visibility,flock.visibility));
+        //assign the boid's type
+        boid.type = flock.isPredator ? AutonomousType.ENEMY : AutonomousType.FRIENDLY;
+
+        //Late initialize after everything
+        boid.LateInit();        
+
     }
 
     //BOID RULE : FLOCK TOGETHER
@@ -459,8 +485,6 @@ public class FlockBehaviour : MonoBehaviour
         }
     }
 
-
-
     #region JOBS
     [BurstCompile]
     public struct FlockJob : IJobParallelFor
@@ -541,7 +565,7 @@ public class FlockBehaviour : MonoBehaviour
             curr.TargetDirection = dir;
             curr.TargetDirection.Normalize();
             
-            dataList[index] = new(curr.Id,curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position,curr.Rotation);
+            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position,curr.Rotation);
         }
 
         public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)
@@ -588,7 +612,7 @@ public class FlockBehaviour : MonoBehaviour
                     dir += targetDirection * weightAvoidObstacles;
                     dir.Normalize();
 
-                    autonomousList[index] = new(autonomousList[index].Id, autonomousList[index].MaxSpeed, autonomousList[index].Speed,
+                    autonomousList[index] = new(autonomousList[index].MaxSpeed, autonomousList[index].Speed,
                         autonomousList[index].TargetSpeed, autonomousList[index].RotationSpeed, autonomousList[index].Accel, 
                         dir, autonomousList[index].Position,autonomousList[index].Rotation);
                 }
@@ -640,7 +664,7 @@ public class FlockBehaviour : MonoBehaviour
                     speed /= 2.0f;
 
                     //create a new boid data with the modified variables
-                    boids[index] = new(boids[index].Id, boids[index].MaxSpeed, boids[index].Speed,
+                    boids[index] = new(boids[index].MaxSpeed, boids[index].Speed,
                         speed, boids[index].RotationSpeed, boids[index].Accel,
                         targetDirection, boids[index].Position,boids[index].Rotation);
                 }
