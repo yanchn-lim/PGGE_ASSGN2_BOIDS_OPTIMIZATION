@@ -28,6 +28,7 @@ public class FlockBehaviour : MonoBehaviour
     public QuadTree quadTree;
     Autonomous test;
     Rect rect;
+    public Vector3 testV;
     void Reset()
     {
         flocks = new List<Flock>()
@@ -39,15 +40,14 @@ public class FlockBehaviour : MonoBehaviour
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(rect.center, rect.size);
-        Gizmos.DrawCube(test.bounds.center,test.bounds.size);
+        Gizmos.DrawWireCube(rect.center,rect.size);
     }
 
     void Start()
     {
-        Vector2 pos = new(Bounds.transform.position.x - (Bounds.bounds.size.x)
-            , Bounds.transform.position.y - (Bounds.bounds.size.y));
-        rect = new(Bounds.transform.position, Bounds.bounds.size);
+        Vector2 pos = new(Bounds.transform.position.x - (Bounds.bounds.size.x/2)
+            , Bounds.transform.position.y - (Bounds.bounds.size.y/2));
+        rect = new(pos, Bounds.bounds.size);
         quadTree = new(rect, new(flocks[0].visibility, flocks[0].visibility));
 
         // Randomize obstacles placement.
