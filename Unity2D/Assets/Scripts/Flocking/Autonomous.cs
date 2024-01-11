@@ -23,6 +23,8 @@ public class Autonomous : MonoBehaviour
     public AutonomousType type;
     public Rect bounds;
 
+    public int id;
+
     #region Start functions
     // Start is called before the first frame update
     void Start()
@@ -37,6 +39,7 @@ public class Autonomous : MonoBehaviour
     void SetRandomSpeed()
     {
         float speed = Random.Range(0.0f, data.MaxSpeed);
+        data.Speed = speed;
     }
 
     void SetRandomDirection()
@@ -56,7 +59,6 @@ public class Autonomous : MonoBehaviour
     {
         data = new();
         data.Speed = 0.0f;
-        SetRandomSpeed();
         SetRandomDirection();
 
         //data = new(MaxSpeed, Speed, TargetSpeed, RotationSpeed, accel, TargetDirection, transform.position);
@@ -64,6 +66,8 @@ public class Autonomous : MonoBehaviour
 
     public void LateInit()
     {
+        SetRandomSpeed();
+
         //StartCoroutine(Move());
         //data.Speed = 100f;
     }
@@ -73,7 +77,8 @@ public class Autonomous : MonoBehaviour
     private void Update()
     {
         bounds.position = new(transform.position.x-(bounds.width/2),transform.position.y-(bounds.height/2));
-        MoveObj();
+        //MoveObj();
+        //data.Position = transform.position;
     }
 
     private void OnDrawGizmos()
@@ -83,52 +88,33 @@ public class Autonomous : MonoBehaviour
 
     private void MoveObj()
     {
-        transform.position = data.Position;
+        
+        //transform.position = data.Position;
 
-        Vector3 targetDirection = data.TargetDirection;
-        targetDirection.Normalize();
+        //Vector3 targetDirection = data.TargetDirection;
+        //targetDirection.Normalize();
 
-        Vector3 rotatedVectorToTarget =
-          Quaternion.Euler(0, 0, 90) *
-          targetDirection;
+        //Vector3 rotatedVectorToTarget =
+        //  Quaternion.Euler(0, 0, 90) *
+        //  targetDirection;
 
-        Quaternion targetRotation = Quaternion.LookRotation(
-          forward: Vector3.forward,
-          upwards: rotatedVectorToTarget);
+        //Quaternion targetRotation = Quaternion.LookRotation(
+        //  forward: Vector3.forward,
+        //  upwards: rotatedVectorToTarget);
 
-        transform.rotation = Quaternion.RotateTowards(
-          transform.rotation,
-          targetRotation,
-          data.RotationSpeed * Time.deltaTime);
+        //transform.rotation = Quaternion.RotateTowards(
+        //  transform.rotation,
+        //  targetRotation,
+        //  data.RotationSpeed * Time.deltaTime);
 
-        data.Speed = data.Speed + ((data.TargetSpeed - data.Speed) / 10.0f) * Time.deltaTime;
+        //data.Speed = data.Speed + ((data.TargetSpeed - data.Speed) / 10.0f) * Time.deltaTime;
 
-        if (data.Speed > data.MaxSpeed)
-            data.Speed = data.MaxSpeed;
+        //if (data.Speed > data.MaxSpeed)
+        //    data.Speed = data.MaxSpeed;
 
         transform.Translate(Vector3.right * data.Speed * Time.deltaTime, Space.Self);
         data.Position = transform.position;
     }
-
-    IEnumerator Move()
-    {
-        while (true)
-        {
-            transform.position = data.Position;
-            transform.rotation = data.Rotation;
-            //Debug.Log("Before" + data.Speed);
-            MoveJob job = new(data,Time.deltaTime);
-            JobHandle jobHandle = job.Schedule();
-            jobHandle.Complete();
-
-            //Debug.Log(data.Speed);
-            transform.Translate(Vector3.right * data.Speed * Time.deltaTime, Space.Self);
-            data.Position = transform.position;
-            data.Rotation = transform.rotation;
-            yield return null;
-        }
-    }
-
 }
 
 
@@ -142,9 +128,8 @@ public struct AutonomousData
     public Vector2 Accel;
     public Vector3 TargetDirection;
     public Vector3 Position;
-    public Quaternion Rotation;
 
-    public AutonomousData(float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos,Quaternion rot)
+    public AutonomousData(float maxSpd, float spd, float tarSpd, float rotSpd, Vector2 accel, Vector3 tarDir,Vector3 pos)
     {
         MaxSpeed = maxSpd;
         Speed = spd;
@@ -153,45 +138,6 @@ public struct AutonomousData
         Accel = accel;
         TargetDirection = tarDir;
         Position = pos;
-        Rotation = rot;
-    }
-}
-
-[BurstCompile]
-public struct MoveJob : IJob
-{
-    AutonomousData data;
-    float deltaTime;
-    public void Execute()
-    {
-        Vector3 targetDirection = data.TargetDirection;
-        targetDirection.Normalize();
-
-        Vector3 rotatedVectorToTarget =
-          Quaternion.Euler(0, 0, 90) *
-          targetDirection;
-
-        Quaternion targetRotation = Quaternion.LookRotation(
-          forward: Vector3.forward,
-          upwards: rotatedVectorToTarget);
-
-        Quaternion rot = Quaternion.RotateTowards(
-          data.Rotation,
-          targetRotation,
-          data.RotationSpeed * deltaTime);
-
-        float Speed = data.Speed + ((data.TargetSpeed - data.Speed) / 10.0f) * deltaTime;
-
-        if (Speed > data.MaxSpeed)
-            Speed = data.MaxSpeed;
-
-        data = new(data.MaxSpeed, Speed, data.TargetSpeed, data.RotationSpeed, data.Accel, targetDirection, data.Position, rot);
-    }
-
-    public MoveJob(AutonomousData data,float time)
-    {
-        this.data = data;
-        deltaTime = time;
     }
 }
 

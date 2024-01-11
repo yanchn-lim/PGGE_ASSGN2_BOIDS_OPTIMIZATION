@@ -26,9 +26,10 @@ public class FlockBehaviour : MonoBehaviour
 
     public List<Flock> flocks = new List<Flock>();
     public QuadTree quadTree;
-    Autonomous test;
+    public List<Autonomous> allObj = new();
+    public MovementHandler mHandler;
     Rect rect;
-    public Vector3 testV;
+
     void Reset()
     {
         flocks = new List<Flock>()
@@ -41,6 +42,7 @@ public class FlockBehaviour : MonoBehaviour
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireCube(rect.center,rect.size);
+        //Gizmos.DrawCube(flocks[0].mAutonomous[0].bounds.center, flocks[0].mAutonomous[0].bounds.size);
     }
 
     void Start()
@@ -58,13 +60,17 @@ public class FlockBehaviour : MonoBehaviour
             float y = Random.Range(Bounds.bounds.min.y, Bounds.bounds.max.y);
             Obstacle obs = Obstacles[i].AddComponent<Obstacle>();
             Autonomous autono = Obstacles[i].AddComponent<Autonomous>();
-            //Obstacles[i].transform.position = new Vector3(x, y, 0.0f);
-            autono.data.Position = new Vector3(x, y, 0.0f);
-
+            Obstacles[i].transform.position = new Vector3(x, y, 0.0f);
+            autono.data.Position = Obstacles[i].transform.position;
+            autono.Initialize();
             autono.data.MaxSpeed = 1.0f;
+            autono.LateInit();
             autono.type = AutonomousType.OBSTACLE;
             obs.mCollider = Obstacles[i].GetComponent<CircleCollider2D>();
             mObstacles.Add(obs);
+
+            allObj.Add(autono);
+
             //quadTree.Insert(autono,quadTree.Root);
         }
 
@@ -75,7 +81,7 @@ public class FlockBehaviour : MonoBehaviour
         {
             CreateFlock(flock);
         }
-        test = flocks[0].mAutonomous[0];
+
         //boid rules
         StartCoroutine(Coroutine_Flocking());
 
@@ -127,10 +133,14 @@ public class FlockBehaviour : MonoBehaviour
         {
             ///Debug.Log(quadTree.FindNode(quadTree.Root, flocks[0].mAutonomous[0].transform.position).depth);
 
-            Debug.Log(flocks[0].mAutonomous[0].name);
-            Debug.Log(Bounds.bounds.Contains(flocks[0].mAutonomous[0].transform.position));
-            quadTree.Insert(flocks[0].mAutonomous[0], quadTree.Root);
-            
+            //Debug.Log(flocks[0].mAutonomous[0].name);
+            //Debug.Log(Bounds.bounds.Contains(flocks[0].mAutonomous[0].transform.position));
+            //quadTree.Insert(flocks[0].mAutonomous[0], quadTree.Root);
+
+            //quadTree.FindObjInRange(quadTree.Root, flocks[0].mAutonomous[0], AutonomousType.FRIENDLY);
+
+            mHandler.StartCoroutine(mHandler.Move());
+
         }
     }
 
@@ -165,13 +175,16 @@ public class FlockBehaviour : MonoBehaviour
         boid.data.Position = new Vector3(x, y, 0.0f);
         boid.data.MaxSpeed = flock.maxSpeed;
         boid.data.RotationSpeed = flock.maxRotationSpeed;
-        boid.data.Rotation = boid.transform.rotation;
         boid.bounds = new(boid.transform.position,new(flock.visibility,flock.visibility));
         //assign the boid's type
         boid.type = flock.isPredator ? AutonomousType.ENEMY : AutonomousType.FRIENDLY;
-
+        
         //Late initialize after everything
-        boid.LateInit();        
+        boid.LateInit();
+
+        allObj.Add(boid);
+
+        quadTree.Insert(boid, quadTree.Root);
 
     }
 
@@ -199,19 +212,18 @@ public class FlockBehaviour : MonoBehaviour
 
                     JobHandle jobHandle = job.Schedule(dataNativeList.Length, dataNativeList.Length);
                     jobHandle.Complete();
-
                     for (int i = 0; i < dataNativeList.Length; i++)
                     {
                         flock.mAutonomous[i].data = dataNativeList[i];
                     }
 
-
                     dataNativeList.Dispose();
 
-                    yield return null; //wait a frame after processing one type of boid
+                    //yield return null; //wait a frame after processing one type of boid
                 }
             }
-            yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
+            yield return null;
+            //yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
         }
     }
 
@@ -565,7 +577,7 @@ public class FlockBehaviour : MonoBehaviour
             curr.TargetDirection = dir;
             curr.TargetDirection.Normalize();
             
-            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position,curr.Rotation);
+            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position);
         }
 
         public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)
@@ -614,7 +626,7 @@ public class FlockBehaviour : MonoBehaviour
 
                     autonomousList[index] = new(autonomousList[index].MaxSpeed, autonomousList[index].Speed,
                         autonomousList[index].TargetSpeed, autonomousList[index].RotationSpeed, autonomousList[index].Accel, 
-                        dir, autonomousList[index].Position,autonomousList[index].Rotation);
+                        dir, autonomousList[index].Position);
                 }
             }
         }
@@ -666,7 +678,7 @@ public class FlockBehaviour : MonoBehaviour
                     //create a new boid data with the modified variables
                     boids[index] = new(boids[index].MaxSpeed, boids[index].Speed,
                         speed, boids[index].RotationSpeed, boids[index].Accel,
-                        targetDirection, boids[index].Position,boids[index].Rotation);
+                        targetDirection, boids[index].Position);
                 }
             }
         }

@@ -16,20 +16,13 @@ public class QuadTree
     {
         //if point is not within the bounding box, skip this box
         if (!node.bounds.Contains(obj.transform.position))
-        {
-            if(node.depth == -1)
-            {
-                Debug.Log(node.depth + " not contain");
-                Debug.Log(node.bounds.Overlaps(obj.bounds));
-                Debug.Log(obj.transform.position);
-            }
-            
+        {   
             return;
         }
 
         if(node.children[0] == null && (node.bounds.size.x <= minSize.x || node.bounds.size.y <= minSize.y))
         {
-            Debug.Log(obj.name + " added at " + node.depth);
+            //Debug.Log(obj.name + " added at " + node.depth);
             node.objList.Add(obj);
         }
         else
@@ -38,7 +31,6 @@ public class QuadTree
             //subdivide further into smaller quads
             if(node.children[0] == null)
             {
-                Debug.Log(obj.name + " we subdivide those at "+node.depth);
                 Subdivide(node);
             }
 
@@ -72,6 +64,7 @@ public class QuadTree
         {
             foreach (var child in node.children)
             {
+                Debug.Log(child.depth);
                 if (!child.bounds.Contains(point))
                 {
                     continue;
@@ -106,6 +99,7 @@ public class QuadTree
 
         Vector2[] points = {TopLeft,TopRight,BtmLeft,BtmRight};
         List<QuadTreeNode> nodesFound = FindNodeWithPoints(node, points);
+        Debug.Log(nodesFound.Count);
 
         foreach (var n in nodesFound)
         {
@@ -114,9 +108,14 @@ public class QuadTree
                             x => bounds.Contains(x.transform.position)
                         )
                 );
+
+            Debug.Log(objInRange.Count);
         }
 
-
+        foreach (var item in objInRange)
+        {
+            Debug.Log(item.name);
+        }
 
         return objInRange;
     }
