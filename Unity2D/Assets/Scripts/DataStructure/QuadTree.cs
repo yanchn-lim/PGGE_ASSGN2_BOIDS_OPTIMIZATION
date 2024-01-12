@@ -8,7 +8,6 @@ public class QuadTree
 
     //the amount of child before it the grid has to be
     //subdivided again
-    int maxDepth = 8;
     Vector2 minSize;
     
     //recursive method to insert the object into the node it belongs to

@@ -27,7 +27,7 @@ public class FlockBehaviour : MonoBehaviour
     public List<Flock> flocks = new List<Flock>();
     public QuadTree quadTree;
     public List<Autonomous> allObj = new();
-    public MovementHandler mHandler;
+    //public MovementHandler mHandler;
     Rect rect;
 
     void Reset()
@@ -138,9 +138,6 @@ public class FlockBehaviour : MonoBehaviour
             //quadTree.Insert(flocks[0].mAutonomous[0], quadTree.Root);
 
             //quadTree.FindObjInRange(quadTree.Root, flocks[0].mAutonomous[0], AutonomousType.FRIENDLY);
-
-            mHandler.StartCoroutine(mHandler.Move());
-
         }
     }
 

@@ -13,3 +13,9 @@ public class Obstacle : MonoBehaviour
 
     public CircleCollider2D mCollider;
 }
+
+public struct ObstacleData
+{
+    public Vector3 pos;
+    public float avoidRad;
+}

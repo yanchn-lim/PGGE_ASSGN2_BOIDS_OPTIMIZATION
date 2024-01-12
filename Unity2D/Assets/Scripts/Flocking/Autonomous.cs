@@ -141,6 +141,13 @@ public struct AutonomousData
     }
 }
 
+public struct BoidData
+{
+    public Vector3 pos;
+    public Vector3 dir;
+    public float spd;
+}
+
 public enum AutonomousType
 {
     OBSTACLE,
