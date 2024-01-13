@@ -1,5 +1,5 @@
 using UnityEngine;
-
+using Unity.Burst;
 public class Obstacle : MonoBehaviour
 {
     public float AvoidanceRadiusMultFactor = 1.5f;
@@ -14,6 +14,7 @@ public class Obstacle : MonoBehaviour
     public CircleCollider2D mCollider;
 }
 
+//[BurstCompile]
 public struct ObstacleData
 {
     public Vector3 pos;

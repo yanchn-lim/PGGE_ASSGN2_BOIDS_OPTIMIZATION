@@ -20,7 +20,7 @@ public class Autonomous : MonoBehaviour
     public AutonomousData data;
 
     public SpriteRenderer spriteRenderer;
-    public AutonomousType type;
+    //public AutonomousType type;
     public Rect bounds;
 
     public int id;
@@ -76,7 +76,7 @@ public class Autonomous : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
-        bounds.position = new(transform.position.x-(bounds.width/2),transform.position.y-(bounds.height/2));
+        //bounds.position = new(transform.position.x-(bounds.width/2),transform.position.y-(bounds.height/2));
         //MoveObj();
         //data.Position = transform.position;
     }
@@ -141,16 +141,18 @@ public struct AutonomousData
     }
 }
 
+//[BurstCompile]
 public struct BoidData
 {
     public Vector3 pos;
     public Vector3 dir;
     public float spd;
+    public BoidType type;
 }
 
-public enum AutonomousType
+
+public enum BoidType
 {
-    OBSTACLE,
     FRIENDLY,
     ENEMY
 }

@@ -65,7 +65,7 @@ public class FlockBehaviour : MonoBehaviour
             autono.Initialize();
             autono.data.MaxSpeed = 1.0f;
             autono.LateInit();
-            autono.type = AutonomousType.OBSTACLE;
+            //autono.type = AutonomousType.OBSTACLE;
             obs.mCollider = Obstacles[i].GetComponent<CircleCollider2D>();
             mObstacles.Add(obs);
 
@@ -174,7 +174,7 @@ public class FlockBehaviour : MonoBehaviour
         boid.data.RotationSpeed = flock.maxRotationSpeed;
         boid.bounds = new(boid.transform.position,new(flock.visibility,flock.visibility));
         //assign the boid's type
-        boid.type = flock.isPredator ? AutonomousType.ENEMY : AutonomousType.FRIENDLY;
+        //boid.type = flock.isPredator ? AutonomousType.ENEMY : AutonomousType.FRIENDLY;
         
         //Late initialize after everything
         boid.LateInit();

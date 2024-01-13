@@ -431,6 +431,7 @@ MonoBehaviour:
   textNumBoids: {fileID: 1944975884}
   textNumEnemies: {fileID: 1250291134}
   flockBehaviour: {fileID: 875704704}
+  fh: {fileID: 1306355544}
 --- !u!1 &123748669
 GameObject:
   m_ObjectHideFlags: 0
@@ -1236,7 +1237,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &875704704
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1328,7 +1329,6 @@ MonoBehaviour:
     bounceWall: 1
     mAutonomous: []
   allObj: []
-  mHandler: {fileID: 2103414678}
 --- !u!4 &875704705
 Transform:
   m_ObjectHideFlags: 0
@@ -1696,6 +1696,124 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 3535629753670510462, guid: 353523b4e2c05e8478d7ac2a7454c50f, type: 3}
   m_PrefabInstance: {fileID: 3535629752770619138}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1306355543
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1306355545}
+  - component: {fileID: 1306355544}
+  m_Layer: 0
+  m_Name: FlockHandler
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1306355544
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1306355543}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dd62a4d205ae7e479c9107cc4e9a612, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  box: {fileID: 735960364}
+  obstacles:
+  - {fileID: 1960878367}
+  - {fileID: 417402680}
+  - {fileID: 698900705}
+  - {fileID: 38863963}
+  - {fileID: 7187985}
+  - {fileID: 1181193350}
+  - {fileID: 1135155404}
+  - {fileID: 1313414628}
+  - {fileID: 492645357}
+  - {fileID: 1639766398}
+  - {fileID: 2089558132}
+  - {fileID: 1197083312}
+  - {fileID: 813306668}
+  - {fileID: 1793850234}
+  - {fileID: 1966240455}
+  - {fileID: 1273282684}
+  - {fileID: 1649745664}
+  - {fileID: 1959210453}
+  - {fileID: 2010150270}
+  - {fileID: 281999220}
+  - {fileID: 1148214724}
+  BoidNumAdd: 1000
+  flocks:
+  - PrefabBoid: {fileID: 1138522166324048232, guid: 1b7bb4e6c0d12884c97216ff0bcde98f, type: 3}
+    name: Boids
+    numBoids: 100
+    isPredator: 0
+    colour: {r: 1, g: 1, b: 1, a: 1}
+    maxSpeed: 25
+    maxRotationSpeed: 300
+    useRandomRule: 1
+    useAlignmentRule: 1
+    useCohesionRule: 1
+    useSeparationRule: 1
+    useFleeOnSightEnemyRule: 1
+    useAvoidObstaclesRule: 1
+    weightRandom: 1
+    weightAlignment: 2
+    weightCohesion: 3
+    weightSeparation: 8
+    weightFleeOnSightEnemy: 50
+    weightAvoidObstacles: 10
+    separationDistance: 2
+    enemySeparationDistance: 10
+    visibility: 20
+    bounceWall: 1
+    mAutonomous: []
+  - PrefabBoid: {fileID: 389496565818785944, guid: 7bc84c9bd85bd9342ba24c647efb0df1, type: 3}
+    name: Predators
+    numBoids: 20
+    isPredator: 1
+    colour: {r: 1, g: 1, b: 1, a: 1}
+    maxSpeed: 20
+    maxRotationSpeed: 300
+    useRandomRule: 1
+    useAlignmentRule: 1
+    useCohesionRule: 1
+    useSeparationRule: 1
+    useFleeOnSightEnemyRule: 0
+    useAvoidObstaclesRule: 1
+    weightRandom: 1
+    weightAlignment: 2
+    weightCohesion: 3
+    weightSeparation: 8
+    weightFleeOnSightEnemy: 50
+    weightAvoidObstacles: 10
+    separationDistance: 3
+    enemySeparationDistance: 10
+    visibility: 20
+    bounceWall: 1
+    mAutonomous: []
+  boidCount: 0
+--- !u!4 &1306355545
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1306355543}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1313414628 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 3535629753614138086, guid: 353523b4e2c05e8478d7ac2a7454c50f, type: 3}
@@ -2364,51 +2482,6 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 3535629754457507702, guid: 353523b4e2c05e8478d7ac2a7454c50f, type: 3}
   m_PrefabInstance: {fileID: 3535629752770619138}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &2103414677
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2103414679}
-  - component: {fileID: 2103414678}
-  m_Layer: 0
-  m_Name: MovementHandler
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2103414678
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103414677}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 981c468acf8e9497aa68a0b46f28af7f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  fb: {fileID: 875704704}
---- !u!4 &2103414679
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2103414677}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 52.56983, y: 11.682184, z: -0.78808355}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &2116510828
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2557,4 +2630,4 @@ SceneRoots:
   - {fileID: 2080531422}
   - {fileID: 113843202}
   - {fileID: 668672897}
-  - {fileID: 2103414679}
+  - {fileID: 1306355545}

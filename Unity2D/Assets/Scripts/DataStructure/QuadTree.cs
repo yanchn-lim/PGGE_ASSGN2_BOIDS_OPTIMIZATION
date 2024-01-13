@@ -87,37 +87,37 @@ public class QuadTree
         return nodes;
     }
 
-    public List<Autonomous> FindObjInRange(QuadTreeNode node, Autonomous query,AutonomousType type)
-    {
-        List<Autonomous> objInRange = new();
-        Rect bounds = query.bounds;
-        Vector2 TopLeft = new(query.bounds.xMin,query.bounds.yMin);
-        Vector2 TopRight = new(query.bounds.xMax, query.bounds.yMin);
-        Vector2 BtmLeft = new(query.bounds.xMin, query.bounds.yMax);
-        Vector2 BtmRight = new(query.bounds.xMax, query.bounds.yMax);
+    //public List<Autonomous> FindObjInRange(QuadTreeNode node, Autonomous query,AutonomousType type)
+    //{
+    //    List<Autonomous> objInRange = new();
+    //    Rect bounds = query.bounds;
+    //    Vector2 TopLeft = new(query.bounds.xMin,query.bounds.yMin);
+    //    Vector2 TopRight = new(query.bounds.xMax, query.bounds.yMin);
+    //    Vector2 BtmLeft = new(query.bounds.xMin, query.bounds.yMax);
+    //    Vector2 BtmRight = new(query.bounds.xMax, query.bounds.yMax);
 
-        Vector2[] points = {TopLeft,TopRight,BtmLeft,BtmRight};
-        List<QuadTreeNode> nodesFound = FindNodeWithPoints(node, points);
-        Debug.Log(nodesFound.Count);
+    //    Vector2[] points = {TopLeft,TopRight,BtmLeft,BtmRight};
+    //    List<QuadTreeNode> nodesFound = FindNodeWithPoints(node, points);
+    //    Debug.Log(nodesFound.Count);
 
-        foreach (var n in nodesFound)
-        {
-            objInRange.AddRange(
-                    n.objList.FindAll(
-                            x => bounds.Contains(x.transform.position)
-                        )
-                );
+    //    foreach (var n in nodesFound)
+    //    {
+    //        objInRange.AddRange(
+    //                n.objList.FindAll(
+    //                        x => bounds.Contains(x.transform.position)
+    //                    )
+    //            );
 
-            Debug.Log(objInRange.Count);
-        }
+    //        Debug.Log(objInRange.Count);
+    //    }
 
-        foreach (var item in objInRange)
-        {
-            Debug.Log(item.name);
-        }
+    //    foreach (var item in objInRange)
+    //    {
+    //        Debug.Log(item.name);
+    //    }
 
-        return objInRange;
-    }
+    //    return objInRange;
+    //}
 
     public QuadTree(Rect bounds,Vector2 minSize)
     {
