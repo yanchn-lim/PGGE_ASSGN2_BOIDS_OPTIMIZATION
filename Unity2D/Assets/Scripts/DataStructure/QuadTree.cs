@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,17 +8,17 @@ public class QuadTree
     //the amount of child before it the grid has to be
     //subdivided again
     Vector2 minSize;
-    
+
     //recursive method to insert the object into the node it belongs to
     public void Insert(Autonomous obj, QuadTreeNode node)
     {
         //if point is not within the bounding box, skip this box
         if (!node.bounds.Contains(obj.transform.position))
-        {   
+        {
             return;
         }
 
-        if(node.children[0] == null && (node.bounds.size.x <= minSize.x || node.bounds.size.y <= minSize.y))
+        if (node.children[0] == null && (node.bounds.size.x <= minSize.x || node.bounds.size.y <= minSize.y))
         {
             //Debug.Log(obj.name + " added at " + node.depth);
             node.objList.Add(obj);
@@ -28,12 +27,12 @@ public class QuadTree
         {
             //if there is no child in this node, it will
             //subdivide further into smaller quads
-            if(node.children[0] == null)
+            if (node.children[0] == null)
             {
                 Subdivide(node);
             }
 
-            foreach(var child in node.children)
+            foreach (var child in node.children)
             {
                 Insert(obj, child);
             }
@@ -48,7 +47,7 @@ public class QuadTree
         float x = node.bounds.x;
         float y = node.bounds.y;
         int depth = node.depth + 1;
-        node.children[0] = new(new Rect(x, y, width, height),depth);
+        node.children[0] = new(new Rect(x, y, width, height), depth);
         node.children[1] = new(new Rect(x + width, y, width, height), depth);
         node.children[2] = new(new Rect(x, y + height, width, height), depth);
         node.children[3] = new(new Rect(x + width, y + height, width, height), depth);
@@ -57,7 +56,7 @@ public class QuadTree
     }
 
 
-    public QuadTreeNode FindNode(QuadTreeNode node,Vector2 point)
+    public QuadTreeNode FindNode(QuadTreeNode node, Vector2 point)
     {
         if (node.children[0] != null)
         {
@@ -75,11 +74,11 @@ public class QuadTree
         return node;
     }
 
-    public List<QuadTreeNode> FindNodeWithPoints(QuadTreeNode node,Vector2[] points)
+    public List<QuadTreeNode> FindNodeWithPoints(QuadTreeNode node, Vector2[] points)
     {
         List<QuadTreeNode> nodes = new();
 
-        foreach(var point in points)
+        foreach (var point in points)
         {
             nodes.Add(FindNode(node, point));
         }
@@ -119,9 +118,9 @@ public class QuadTree
     //    return objInRange;
     //}
 
-    public QuadTree(Rect bounds,Vector2 minSize)
+    public QuadTree(Rect bounds, Vector2 minSize)
     {
-        Root = new(bounds,-1);
+        Root = new(bounds, -1);
         this.minSize = minSize;
     }
 }
@@ -133,7 +132,7 @@ public class QuadTreeNode
     public List<Autonomous> objList;
     public QuadTreeNode[] children;
 
-    public QuadTreeNode(Rect bound,int depth)
+    public QuadTreeNode(Rect bound, int depth)
     {
         bounds = bound;
         objList = new();

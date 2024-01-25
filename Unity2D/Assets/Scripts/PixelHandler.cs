@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class PixelHandler : MonoBehaviour
@@ -9,11 +7,11 @@ public class PixelHandler : MonoBehaviour
 
     private void Awake()
     {
-        
+
     }
 
     void Start()
     {
-        
+
     }
 }

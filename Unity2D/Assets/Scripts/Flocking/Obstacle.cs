@@ -1,5 +1,4 @@
 using UnityEngine;
-using Unity.Burst;
 public class Obstacle : MonoBehaviour
 {
     public float AvoidanceRadiusMultFactor = 1.5f;

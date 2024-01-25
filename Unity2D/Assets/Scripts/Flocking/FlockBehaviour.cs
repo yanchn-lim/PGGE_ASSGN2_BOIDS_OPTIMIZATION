@@ -2,9 +2,6 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using Unity.Jobs;
-using Unity.Collections;
-using Unity.Burst;
 
 public class FlockBehaviour : MonoBehaviour
 {
@@ -25,78 +22,61 @@ public class FlockBehaviour : MonoBehaviour
     public int BatchSize = 100;
 
     public List<Flock> flocks = new List<Flock>();
-    public QuadTree quadTree;
-    public List<Autonomous> allObj = new();
-    //public MovementHandler mHandler;
-    Rect rect;
-
     void Reset()
     {
         flocks = new List<Flock>()
         {
-          new Flock()
+            new Flock()
         };
     }
 
-    private void OnDrawGizmos()
+    private void OnDisable()
     {
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireCube(rect.center,rect.size);
-        //Gizmos.DrawCube(flocks[0].mAutonomous[0].bounds.center, flocks[0].mAutonomous[0].bounds.size);
+        foreach (var flock in flocks)
+        {
+            foreach (var boid in flock.mAutonomous)
+            {
+                Destroy(boid.gameObject);
+
+            }
+
+            flock.mAutonomous.Clear();
+        }
     }
 
-    void Start()
+    public void InitializeSimulation()
     {
-        Vector2 pos = new(Bounds.transform.position.x - (Bounds.bounds.size.x/2)
-            , Bounds.transform.position.y - (Bounds.bounds.size.y/2));
-        rect = new(pos, Bounds.bounds.size);
-        quadTree = new(rect, new(flocks[0].visibility, flocks[0].visibility));
+        Debug.Log("INITIALIZING BOID SIMULATION (BASE)");
+
 
         // Randomize obstacles placement.
-        //obstacles are the asteroid on the map
         for (int i = 0; i < Obstacles.Length; ++i)
         {
             float x = Random.Range(Bounds.bounds.min.x, Bounds.bounds.max.x);
             float y = Random.Range(Bounds.bounds.min.y, Bounds.bounds.max.y);
+            Obstacles[i].transform.position = new Vector3(x, y, 0.0f);
             Obstacle obs = Obstacles[i].AddComponent<Obstacle>();
             Autonomous autono = Obstacles[i].AddComponent<Autonomous>();
-            Obstacles[i].transform.position = new Vector3(x, y, 0.0f);
-            autono.data.Position = Obstacles[i].transform.position;
-            autono.Initialize();
-            autono.data.MaxSpeed = 1.0f;
-            autono.LateInit();
-            //autono.type = AutonomousType.OBSTACLE;
+            autono.MaxSpeed = 1.0f;
             obs.mCollider = Obstacles[i].GetComponent<CircleCollider2D>();
             mObstacles.Add(obs);
-
-            allObj.Add(autono);
-
-            //quadTree.Insert(autono,quadTree.Root);
         }
 
-        //creates 2 flock of ships
-        //flock 1 is friendly ships which spawn 100 at the start
-        //flock 2 is enemy ships which spawns 20 at the start
         foreach (Flock flock in flocks)
         {
             CreateFlock(flock);
         }
 
-        //boid rules
         StartCoroutine(Coroutine_Flocking());
 
         StartCoroutine(Coroutine_Random());
         StartCoroutine(Coroutine_AvoidObstacles());
         StartCoroutine(Coroutine_SeparationWithEnemies());
-
-        //random movement of the obstacles on the map
         StartCoroutine(Coroutine_Random_Motion_Obstacles());
     }
 
-    //create a flock of the ships
     void CreateFlock(Flock flock)
     {
-        //spawn each ship in a random location
         for (int i = 0; i < flock.numBoids; ++i)
         {
             float x = Random.Range(Bounds.bounds.min.x, Bounds.bounds.max.x);
@@ -108,10 +88,7 @@ public class FlockBehaviour : MonoBehaviour
 
     void Update()
     {
-        //check input for player
         HandleInputs();
-
-
         Rule_CrossBorder();
         Rule_CrossBorder_Obstacles();
     }
@@ -128,21 +105,8 @@ public class FlockBehaviour : MonoBehaviour
         {
             AddBoids(BoidIncr);
         }
-
-        if (Input.GetKeyDown(KeyCode.X))
-        {
-            ///Debug.Log(quadTree.FindNode(quadTree.Root, flocks[0].mAutonomous[0].transform.position).depth);
-
-            //Debug.Log(flocks[0].mAutonomous[0].name);
-            //Debug.Log(Bounds.bounds.Contains(flocks[0].mAutonomous[0].transform.position));
-            //quadTree.Insert(flocks[0].mAutonomous[0], quadTree.Root);
-
-            //quadTree.FindObjInRange(quadTree.Root, flocks[0].mAutonomous[0], AutonomousType.FRIENDLY);
-        }
     }
 
-    //add the specified number of boids at random locations
-    //increase the number of boids in the count
     void AddBoids(int count)
     {
         for (int i = 0; i < count; ++i)
@@ -151,41 +115,88 @@ public class FlockBehaviour : MonoBehaviour
             float y = Random.Range(Bounds.bounds.min.y, Bounds.bounds.max.y);
 
             AddBoid(x, y, flocks[0]);
-
         }
         flocks[0].numBoids += count;
     }
 
-    //add the boid into the game
-    //boid is spawned and a Autonomous component is added
-    //Autonomous component automates the boid logic
     void AddBoid(float x, float y, Flock flock)
     {
         GameObject obj = Instantiate(flock.PrefabBoid);
         obj.name = "Boid_" + flock.name + "_" + flock.mAutonomous.Count;
+        obj.transform.position = new Vector3(x, y, 0.0f);
         Autonomous boid = obj.GetComponent<Autonomous>();
         flock.mAutonomous.Add(boid);
-
-        //add the data of the boid into the list of data
-        boid.Initialize();
-        //assign the data
-        boid.data.Position = new Vector3(x, y, 0.0f);
-        boid.data.MaxSpeed = flock.maxSpeed;
-        boid.data.RotationSpeed = flock.maxRotationSpeed;
-        boid.bounds = new(boid.transform.position,new(flock.visibility,flock.visibility));
-        //assign the boid's type
-        //boid.type = flock.isPredator ? AutonomousType.ENEMY : AutonomousType.FRIENDLY;
-        
-        //Late initialize after everything
-        boid.LateInit();
-
-        allObj.Add(boid);
-
-        quadTree.Insert(boid, quadTree.Root);
-
+        boid.MaxSpeed = flock.maxSpeed;
+        boid.RotationSpeed = flock.maxRotationSpeed;
+        boid.baseFlock = this;
     }
 
-    //BOID RULE : FLOCK TOGETHER
+    static float Distance(Autonomous a1, Autonomous a2)
+    {
+        return (a1.transform.position - a2.transform.position).magnitude;
+    }
+
+    void Execute(Flock flock, int i)
+    {
+        Vector3 flockDir = Vector3.zero;
+        Vector3 separationDir = Vector3.zero;
+        Vector3 cohesionDir = Vector3.zero;
+
+        float speed = 0.0f;
+        float separationSpeed = 0.0f;
+
+        int count = 0;
+        int separationCount = 0;
+        Vector3 steerPos = Vector3.zero;
+
+        Autonomous curr = flock.mAutonomous[i];
+        for (int j = 0; j < flock.numBoids; ++j)
+        {
+            Autonomous other = flock.mAutonomous[j];
+            float dist = (curr.transform.position - other.transform.position).magnitude;
+            if (i != j && dist < flock.visibility)
+            {
+                speed += other.Speed;
+                flockDir += other.TargetDirection;
+                steerPos += other.transform.position;
+                count++;
+            }
+            if (i != j)
+            {
+                if (dist < flock.separationDistance)
+                {
+                    Vector3 targetDirection = (
+                      curr.transform.position -
+                      other.transform.position).normalized;
+
+                    separationDir += targetDirection;
+                    separationSpeed += dist * flock.weightSeparation;
+                }
+            }
+        }
+        if (count > 0)
+        {
+            speed = speed / count;
+            flockDir = flockDir / count;
+            flockDir.Normalize();
+
+            steerPos = steerPos / count;
+        }
+
+        if (separationCount > 0)
+        {
+            separationSpeed = separationSpeed / count;
+            separationDir = separationDir / separationSpeed;
+            separationDir.Normalize();
+        }
+
+        curr.TargetDirection =
+          flockDir * speed * (flock.useAlignmentRule ? flock.weightAlignment : 0.0f) +
+          separationDir * separationSpeed * (flock.useSeparationRule ? flock.weightSeparation : 0.0f) +
+          (steerPos - curr.transform.position) * (flock.useCohesionRule ? flock.weightCohesion : 0.0f);
+    }
+
+
     IEnumerator Coroutine_Flocking()
     {
         while (true)
@@ -194,33 +205,49 @@ public class FlockBehaviour : MonoBehaviour
             {
                 foreach (Flock flock in flocks)
                 {
-                    //goes through the list of boids
                     List<Autonomous> autonomousList = flock.mAutonomous;
-                    NativeArray<AutonomousData> dataNativeList = new NativeArray<AutonomousData>(flock.mAutonomous.Count,Allocator.TempJob);
-
-                    for (int i = 0; i < flock.mAutonomous.Count; i++)
+                    for (int i = 0; i < autonomousList.Count; ++i)
                     {
-                        var data = autonomousList[i].data;
-                        dataNativeList[i] = data;
+                        Execute(flock, i);
+                        if (i % BatchSize == 0)
+                        {
+                            yield return null;
+                        }
                     }
-
-                    FlockJob job = new(dataNativeList, flock.visibility, flock.separationDistance, flock.weightSeparation, flock.weightAlignment, flock.weightCohesion
-                        , flock.useAlignmentRule, flock.useSeparationRule, flock.useCohesionRule);
-
-                    JobHandle jobHandle = job.Schedule(dataNativeList.Length, dataNativeList.Length);
-                    jobHandle.Complete();
-                    for (int i = 0; i < dataNativeList.Length; i++)
-                    {
-                        flock.mAutonomous[i].data = dataNativeList[i];
-                    }
-
-                    dataNativeList.Dispose();
-
-                    //yield return null; //wait a frame after processing one type of boid
+                    yield return null;
                 }
             }
-            yield return null;
-            //yield return new WaitForSeconds(TickDuration); //wait for the tick duration before looping
+            yield return new WaitForSeconds(TickDuration);
+        }
+    }
+
+
+    void SeparationWithEnemies_Internal(
+      List<Autonomous> boids,
+      List<Autonomous> enemies,
+      float sepDist,
+      float sepWeight)
+    {
+        for (int i = 0; i < boids.Count; ++i)
+        {
+            for (int j = 0; j < enemies.Count; ++j)
+            {
+                float dist = (
+                  enemies[j].transform.position -
+                  boids[i].transform.position).magnitude;
+                if (dist < sepDist)
+                {
+                    Vector3 targetDirection = (
+                      boids[i].transform.position -
+                      enemies[j].transform.position).normalized;
+
+                    boids[i].TargetDirection += targetDirection;
+                    boids[i].TargetDirection.Normalize();
+
+                    boids[i].TargetSpeed += dist * sepWeight;
+                    boids[i].TargetSpeed /= 2.0f;
+                }
+            }
         }
     }
 
@@ -231,36 +258,16 @@ public class FlockBehaviour : MonoBehaviour
             foreach (Flock flock in flocks)
             {
                 if (!flock.useFleeOnSightEnemyRule || flock.isPredator) continue;
-                NativeArray<AutonomousData> nativeAutoArray = new(flock.mAutonomous.Count, Allocator.TempJob);
-
-                for (int i = 0; i < flock.mAutonomous.Count; i++)
-                {
-                    nativeAutoArray[i] = flock.mAutonomous[i].data;
-                }
 
                 foreach (Flock enemies in flocks)
                 {
                     if (!enemies.isPredator) continue;
 
-                    NativeArray<AutonomousData> nativeEnemyArray = new(enemies.mAutonomous.Count, Allocator.TempJob);
-
-                    for (int i = 0; i < enemies.mAutonomous.Count; i++)
-                    {
-                        nativeEnemyArray[i] = enemies.mAutonomous[i].data;
-                    }
-
-                    AvoidEnemiesJob job = new(nativeAutoArray,nativeEnemyArray,flock.enemySeparationDistance,flock.weightFleeOnSightEnemy);
-                    JobHandle jobHandle = job.Schedule(nativeAutoArray.Length,nativeAutoArray.Length);
-                    jobHandle.Complete();
-
-                    for (int i = 0; i < nativeAutoArray.Length; i++)
-                    {
-                        flock.mAutonomous[i].data = nativeAutoArray[i];
-                    }
-
-                    nativeAutoArray.Dispose();
-                    nativeEnemyArray.Dispose();
-
+                    SeparationWithEnemies_Internal(
+                      flock.mAutonomous,
+                      enemies.mAutonomous,
+                      flock.enemySeparationDistance,
+                      flock.weightFleeOnSightEnemy);
                 }
                 //yield return null;
             }
@@ -277,40 +284,30 @@ public class FlockBehaviour : MonoBehaviour
                 if (flock.useAvoidObstaclesRule)
                 {
                     List<Autonomous> autonomousList = flock.mAutonomous;
-                    NativeArray<AutonomousData> nativeAutoArray = new NativeArray<AutonomousData>(autonomousList.Count, Allocator.TempJob);
-                    NativeArray<AutonomousData> nativeObstacleArray = new NativeArray<AutonomousData>(mObstacles.Count, Allocator.TempJob);
-                    NativeArray<float> nativeFloatArray = new NativeArray<float>(mObstacles.Count, Allocator.TempJob);
-                    for (int i = 0; i < flock.mAutonomous.Count; i++)
+                    for (int i = 0; i < autonomousList.Count; ++i)
                     {
-                        var data = autonomousList[i].data;
-                        nativeAutoArray[i] = data;
+                        for (int j = 0; j < mObstacles.Count; ++j)
+                        {
+                            float dist = (
+                              mObstacles[j].transform.position -
+                              autonomousList[i].transform.position).magnitude;
+                            if (dist < mObstacles[j].AvoidanceRadius)
+                            {
+                                Vector3 targetDirection = (
+                                  autonomousList[i].transform.position -
+                                  mObstacles[j].transform.position).normalized;
+
+                                autonomousList[i].TargetDirection += targetDirection * flock.weightAvoidObstacles;
+                                autonomousList[i].TargetDirection.Normalize();
+                            }
+                        }
                     }
-
-                    for (int i = 0; i < mObstacles.Count; i++)
-                    {
-                        nativeObstacleArray[i] = mObstacles[i].GetComponent<Autonomous>().data;
-                        nativeFloatArray[i] = mObstacles[i].AvoidanceRadius;
-                    }
-
-                    AvoidObstacleJob job = new(nativeAutoArray,nativeObstacleArray,nativeFloatArray,flock.weightAvoidObstacles);
-                    JobHandle jobHandle = job.Schedule(nativeAutoArray.Length,nativeAutoArray.Length);
-                    jobHandle.Complete();
-
-                    for (int i = 0; i < nativeAutoArray.Length; i++)
-                    {
-                        flock.mAutonomous[i].data = nativeAutoArray[i];
-                    }
-
-                    nativeAutoArray.Dispose();
-                    nativeObstacleArray.Dispose();
-                    nativeFloatArray.Dispose();
                 }
-                yield return null;
+                //yield return null;
             }
             yield return null;
         }
     }
-
     IEnumerator Coroutine_Random_Motion_Obstacles()
     {
         while (true)
@@ -319,8 +316,8 @@ public class FlockBehaviour : MonoBehaviour
             {
                 Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
                 float rand = Random.Range(0.0f, 1.0f);
-                autono.data.TargetDirection.Normalize();
-                float angle = Mathf.Atan2(autono.data.TargetDirection.y, autono.data.TargetDirection.x);
+                autono.TargetDirection.Normalize();
+                float angle = Mathf.Atan2(autono.TargetDirection.y, autono.TargetDirection.x);
 
                 if (rand > 0.5f)
                 {
@@ -334,18 +331,17 @@ public class FlockBehaviour : MonoBehaviour
                 dir.x = Mathf.Cos(angle);
                 dir.y = Mathf.Sin(angle);
 
-                autono.data.TargetDirection += dir * 0.1f;
-                autono.data.TargetDirection.Normalize();
+                autono.TargetDirection += dir * 0.1f;
+                autono.TargetDirection.Normalize();
                 //Debug.Log(autonomousList[i].TargetDirection);
 
-                float speed = Random.Range(1.0f, autono.data.MaxSpeed);
-                autono.data.TargetSpeed += speed;
-                autono.data.TargetSpeed /= 2.0f;
+                float speed = Random.Range(1.0f, autono.MaxSpeed);
+                autono.TargetSpeed += speed;
+                autono.TargetSpeed /= 2.0f;
             }
             yield return new WaitForSeconds(2.0f);
         }
     }
-
     IEnumerator Coroutine_Random()
     {
         while (true)
@@ -358,8 +354,8 @@ public class FlockBehaviour : MonoBehaviour
                     for (int i = 0; i < autonomousList.Count; ++i)
                     {
                         float rand = Random.Range(0.0f, 1.0f);
-                        autonomousList[i].data.TargetDirection.Normalize();
-                        float angle = Mathf.Atan2(autonomousList[i].data.TargetDirection.y, autonomousList[i].data.TargetDirection.x);
+                        autonomousList[i].TargetDirection.Normalize();
+                        float angle = Mathf.Atan2(autonomousList[i].TargetDirection.y, autonomousList[i].TargetDirection.x);
 
                         if (rand > 0.5f)
                         {
@@ -373,13 +369,13 @@ public class FlockBehaviour : MonoBehaviour
                         dir.x = Mathf.Cos(angle);
                         dir.y = Mathf.Sin(angle);
 
-                        autonomousList[i].data.TargetDirection += dir * flock.weightRandom;
-                        autonomousList[i].data.TargetDirection.Normalize();
+                        autonomousList[i].TargetDirection += dir * flock.weightRandom;
+                        autonomousList[i].TargetDirection.Normalize();
                         //Debug.Log(autonomousList[i].TargetDirection);
 
-                        float speed = Random.Range(1.0f, autonomousList[i].data.MaxSpeed);
-                        autonomousList[i].data.TargetSpeed += speed * flock.weightSeparation;
-                        autonomousList[i].data.TargetSpeed /= 2.0f;
+                        float speed = Random.Range(1.0f, autonomousList[i].MaxSpeed);
+                        autonomousList[i].TargetSpeed += speed * flock.weightSeparation;
+                        autonomousList[i].TargetSpeed /= 2.0f;
                     }
                 }
                 //yield return null;
@@ -387,31 +383,29 @@ public class FlockBehaviour : MonoBehaviour
             yield return new WaitForSeconds(TickDurationRandom);
         }
     }
-
     void Rule_CrossBorder_Obstacles()
     {
         for (int i = 0; i < Obstacles.Length; ++i)
         {
             Autonomous autono = Obstacles[i].GetComponent<Autonomous>();
-            Vector3 pos = autono.data.Position;
-            if (autono.data.Position.x > Bounds.bounds.max.x)
+            Vector3 pos = autono.transform.position;
+            if (autono.transform.position.x > Bounds.bounds.max.x)
             {
                 pos.x = Bounds.bounds.min.x;
-                
             }
-            if (autono.data.Position.x < Bounds.bounds.min.x)
+            if (autono.transform.position.x < Bounds.bounds.min.x)
             {
                 pos.x = Bounds.bounds.max.x;
             }
-            if (autono.data.Position.y > Bounds.bounds.max.y)
+            if (autono.transform.position.y > Bounds.bounds.max.y)
             {
                 pos.y = Bounds.bounds.min.y;
             }
-            if (autono.data.Position.y < Bounds.bounds.min.y)
+            if (autono.transform.position.y < Bounds.bounds.min.y)
             {
                 pos.y = Bounds.bounds.max.y;
             }
-            autono.data.Position = pos;
+            autono.transform.position = pos;
         }
 
         //for (int i = 0; i < Obstacles.Length; ++i)
@@ -447,248 +441,50 @@ public class FlockBehaviour : MonoBehaviour
             {
                 for (int i = 0; i < autonomousList.Count; ++i)
                 {
-                    Vector3 pos = autonomousList[i].data.Position;
-                    if (autonomousList[i].data.Position.x + 5.0f > Bounds.bounds.max.x)
+                    Vector3 pos = autonomousList[i].transform.position;
+                    if (autonomousList[i].transform.position.x + 5.0f > Bounds.bounds.max.x)
                     {
-                        autonomousList[i].data.TargetDirection.x = -1.0f;
+                        autonomousList[i].TargetDirection.x = -1.0f;
                     }
-                    if (autonomousList[i].data.Position.x - 5.0f < Bounds.bounds.min.x)
+                    if (autonomousList[i].transform.position.x - 5.0f < Bounds.bounds.min.x)
                     {
-                        autonomousList[i].data.TargetDirection.x = 1.0f;
+                        autonomousList[i].TargetDirection.x = 1.0f;
                     }
-                    if (autonomousList[i].data.Position.y + 5.0f > Bounds.bounds.max.y)
+                    if (autonomousList[i].transform.position.y + 5.0f > Bounds.bounds.max.y)
                     {
-                        autonomousList[i].data.TargetDirection.y = -1.0f;
+                        autonomousList[i].TargetDirection.y = -1.0f;
                     }
-                    if (autonomousList[i].data.Position.y - 5.0f < Bounds.bounds.min.y)
+                    if (autonomousList[i].transform.position.y - 5.0f < Bounds.bounds.min.y)
                     {
-                        autonomousList[i].data.TargetDirection.y = 1.0f;
+                        autonomousList[i].TargetDirection.y = 1.0f;
                     }
-                    autonomousList[i].data.TargetDirection.Normalize();
+                    autonomousList[i].TargetDirection.Normalize();
                 }
             }
             else
             {
                 for (int i = 0; i < autonomousList.Count; ++i)
                 {
-                    Vector3 pos = autonomousList[i].data.Position;
-                    if (autonomousList[i].data.Position.x > Bounds.bounds.max.x)
+                    Vector3 pos = autonomousList[i].transform.position;
+                    if (autonomousList[i].transform.position.x > Bounds.bounds.max.x)
                     {
                         pos.x = Bounds.bounds.min.x;
                     }
-                    if (autonomousList[i].data.Position.x < Bounds.bounds.min.x)
+                    if (autonomousList[i].transform.position.x < Bounds.bounds.min.x)
                     {
                         pos.x = Bounds.bounds.max.x;
                     }
-                    if (autonomousList[i].data.Position.y > Bounds.bounds.max.y)
+                    if (autonomousList[i].transform.position.y > Bounds.bounds.max.y)
                     {
                         pos.y = Bounds.bounds.min.y;
                     }
-                    if (autonomousList[i].data.Position.y < Bounds.bounds.min.y)
+                    if (autonomousList[i].transform.position.y < Bounds.bounds.min.y)
                     {
                         pos.y = Bounds.bounds.max.y;
                     }
-                    autonomousList[i].data.Position = pos;
+                    autonomousList[i].transform.position = pos;
                 }
             }
         }
     }
-
-    #region JOBS
-    [BurstCompile]
-    public struct FlockJob : IJobParallelFor
-    {
-        NativeArray<AutonomousData> dataList;
-
-        [ReadOnly]
-        float visibility;
-        [ReadOnly]
-        float separationDistance;
-        [ReadOnly]
-        float weightSeparation;
-        [ReadOnly]
-        float weightAlignment;
-        [ReadOnly]
-        float weightCohesion;
-        [ReadOnly]
-        bool useAlignmentRule;
-        [ReadOnly]
-        bool useSeparationRule;
-        [ReadOnly]
-        bool useCohesionRule;
-
-        public void Execute(int index)
-        {
-            Vector3 flockDir = Vector3.zero;
-            Vector3 separationDir = Vector3.zero;
-            Vector3 cohesionDir = Vector3.zero;
-
-            float speed = 0.0f;
-            float separationSpeed = 0.0f;
-
-            int count = 0; 
-            Vector3 steerPos = Vector3.zero;
-
-            //goes through the list of boid
-            AutonomousData curr = dataList[index]; //the current boid we are checking
-
-            for (int j = 0; j < dataList.Length; ++j)
-            {
-                AutonomousData other = dataList[j];//the boid we are checking against
-
-                float dist = (curr.Position - other.Position).magnitude; //checking the distance between them
-                if (index != j && dist < visibility)
-                {
-                    speed += other.Speed;
-                    flockDir += other.TargetDirection;
-                    steerPos += other.Position;
-                    count++;
-                }
-                if (index != j)
-                {
-                    if (dist < separationDistance)
-                    {
-                        Vector3 targetDirection = (
-                          curr.Position -
-                          other.Position).normalized;
-
-                        separationDir += targetDirection;
-                        separationSpeed += dist * weightSeparation;
-                    }
-                }
-            }
-
-            if (count > 0)
-            {
-                speed = speed / count;
-                flockDir = flockDir / count;
-                flockDir.Normalize();
-
-                steerPos = steerPos / count;
-            }
-
-            Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
-                          separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
-                          (steerPos - curr.Position) * (useCohesionRule ? weightCohesion : 0.0f);
-
-            curr.TargetDirection = dir;
-            curr.TargetDirection.Normalize();
-            
-            dataList[index] = new(curr.MaxSpeed,curr.Speed,curr.TargetSpeed,curr.RotationSpeed,curr.Accel,curr.TargetDirection,curr.Position);
-        }
-
-        public FlockJob(NativeArray<AutonomousData> data,float vis, float sepD, float weiS, float weiA, float weiC, bool aRule,bool sRule,bool cRule)
-        {
-            dataList = data;
-            visibility = vis;
-            separationDistance = sepD;
-            weightSeparation = weiS;
-            weightAlignment = weiA;
-            weightCohesion = weiC;
-            useAlignmentRule = aRule;
-            useSeparationRule = sRule;
-            useCohesionRule = cRule;
-        }
-    }
-
-    [BurstCompile]
-    public struct AvoidObstacleJob : IJobParallelFor
-    {
-        NativeArray<AutonomousData> autonomousList;
-        [ReadOnly]
-        NativeArray<AutonomousData> mObstacles;
-        [ReadOnly]
-        NativeArray<float> avoidanceRadiusArray;
-        [ReadOnly]
-        float weightAvoidObstacles;
-
-        public void Execute(int index)
-        {
-            for (int j = 0; j < mObstacles.Length; ++j)
-            {
-                float dist = (
-                  mObstacles[j].Position -
-                  autonomousList[index].Position).magnitude;
-
-                if (dist < avoidanceRadiusArray[j])
-                {
-                    Vector3 targetDirection = (
-                      autonomousList[index].Position -
-                      mObstacles[j].Position).normalized;
-
-
-                    Vector3 dir = autonomousList[index].TargetDirection;
-                    dir += targetDirection * weightAvoidObstacles;
-                    dir.Normalize();
-
-                    autonomousList[index] = new(autonomousList[index].MaxSpeed, autonomousList[index].Speed,
-                        autonomousList[index].TargetSpeed, autonomousList[index].RotationSpeed, autonomousList[index].Accel, 
-                        dir, autonomousList[index].Position);
-                }
-            }
-        }
-
-        public AvoidObstacleJob(
-            NativeArray<AutonomousData> autonomousList,
-            NativeArray<AutonomousData> mObstacles,
-            NativeArray<float> avoidanceRadiusArray,
-            float weightAvoidObstacles
-            )
-        {
-            this.autonomousList = autonomousList;
-            this.mObstacles = mObstacles;
-            this.avoidanceRadiusArray = avoidanceRadiusArray;
-            this.weightAvoidObstacles = weightAvoidObstacles;
-        }
-    }
-
-    [BurstCompile]
-    public struct AvoidEnemiesJob : IJobParallelFor
-    {
-        NativeArray<AutonomousData> boids;
-
-        //set these to readonly to avoid and modification
-        [ReadOnly]
-        NativeArray<AutonomousData> enemies;
-        [ReadOnly]
-        float sepDist;
-        [ReadOnly]
-        float sepWeight;
-
-        public void Execute(int index)
-        {   
-            //took the internal loop from the original method and implemented as a job
-            //most of the working are still the same with some modified parts to fit into
-            //the job system
-            for (int j = 0; j < enemies.Length; ++j)
-            {
-                float dist = (
-                  enemies[j].Position -
-                  boids[index].Position).magnitude;
-                if (dist < sepDist)
-                {
-                    Vector3 targetDirection = ((boids[index].Position -enemies[j].Position) + boids[index].TargetDirection).normalized;
-
-                    float speed = boids[index].TargetSpeed + dist * sepWeight;
-                    speed /= 2.0f;
-
-                    //create a new boid data with the modified variables
-                    boids[index] = new(boids[index].MaxSpeed, boids[index].Speed,
-                        speed, boids[index].RotationSpeed, boids[index].Accel,
-                        targetDirection, boids[index].Position);
-                }
-            }
-        }
-
-        public AvoidEnemiesJob(NativeArray<AutonomousData> boids, NativeArray<AutonomousData> enemies,float sepDist,float sepWeight)
-        {
-            this.boids = boids;
-            this.enemies = enemies;
-            this.sepDist = sepDist;
-            this.sepWeight = sepWeight;
-        }
-    }
-    #endregion
 }
-
-

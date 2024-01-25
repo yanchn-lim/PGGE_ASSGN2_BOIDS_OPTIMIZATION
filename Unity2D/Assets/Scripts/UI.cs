@@ -9,11 +9,38 @@ public class UI : MonoBehaviour
 
     public FlockBehaviour flockBehaviour;
     public FlockHandler fh;
+    public FlockCSHandler fch;
 
-    void Start()
+    public void StartBase(bool check)
     {
-        //StartCoroutine(Coroutine_UpdateText());
-        StartCoroutine(Coroutine_UpdateTextFH());
+        if (check)
+        {
+            StartCoroutine(Coroutine_UpdateText());
+            return;
+        }
+        StopAllCoroutines();
+
+    }
+
+    public void StartJob(bool check)
+    {
+        if (check)
+        {
+            StartCoroutine(Coroutine_UpdateTextFH());
+            return;
+        }
+        StopAllCoroutines();
+    }
+
+    public void StartCS(bool check)
+    {
+        if (check)
+        {
+            StartCoroutine(Coroutine_UpdateTextCS());
+            return;
+        }
+        StopAllCoroutines();
+
     }
 
     IEnumerator Coroutine_UpdateText()
@@ -45,4 +72,16 @@ public class UI : MonoBehaviour
             yield return new WaitForSeconds(0.5f);
         }
     }
+
+    IEnumerator Coroutine_UpdateTextCS()
+    {
+        while (true)
+        {
+
+            textNumBoids.text = "Boids: " + fch.currNum.ToString();
+            yield return new WaitForSeconds(0.5f);
+        }
+    }
 }
+
+

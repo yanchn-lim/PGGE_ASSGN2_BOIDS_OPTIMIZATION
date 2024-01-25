@@ -1,0 +1,26 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct BoidData
+{
+    float3 pos;
+    float3 dir;
+    float spd;
+};
+
+int size;
+float timeDelta;
+RWStructuredBuffer<BoidData> Result;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    // TODO: insert actual code here!
+    int index = id.x + id.y * size;
+    float3 d = float3(1, 0, 0);
+    float s = 5;
+    
+    Result[index].dir = d;
+    Result[index].spd = s;
+    Result[index].pos += d * s * timeDelta;
+}

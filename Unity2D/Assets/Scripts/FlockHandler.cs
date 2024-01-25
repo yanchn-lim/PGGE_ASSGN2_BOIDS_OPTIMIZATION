@@ -1,11 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Jobs;
 using UnityEngine;
 using UnityEngine.Jobs;
-using Unity.Jobs;
-using Unity.Collections;
-using Unity.Burst;
-using Unity.Collections.LowLevel.Unsafe;
 
 public class FlockHandler : MonoBehaviour
 {
@@ -16,6 +16,7 @@ public class FlockHandler : MonoBehaviour
 
     [SerializeField]
     GameObject[] obstacles;
+
     #endregion
 
     #region Customizable Variables
@@ -77,19 +78,21 @@ public class FlockHandler : MonoBehaviour
     JobHandle moveJobHandle;
     JobHandle flockJobHandle;
     JobHandle randMoveJobHandle;
+
+    List<GameObject> boidList;
     #endregion
 
     #region MonoBehaviour Methods
-    private void Start()
-    {
-        Initialize();
-    }
-
     private void Update()
     {
+        //wait for all jobs to complete before proceeding with this frame
         WaitForAllJobComplete();
 
         HandleInputs();
+        //copy the data from the main buffer to the double buffer
+        //having a double buffer helps prevent race conditions where
+        //the data is being shared across multiple jobs and being modified at the same time
+        //this might cause bugs or unintended behaviour to emerge
         boidData_NA_dbl.CopyFrom(boidData_NA);
         moveJob = new MoveJob
         {
@@ -111,12 +114,32 @@ public class FlockHandler : MonoBehaviour
             sepDist = sepDist,
             sepWeight = weightSep,
             bounceOffWall = bounceWall,
-            friendlyCount = friendlyCount
+            friendlyCount = friendlyCount,
         };
         moveJobHandle = moveJob.Schedule(transformArray);
         JobHandle.ScheduleBatchedJobs();
+    }
 
-        //Debug.Log(boidData_NA[0].dir);
+    private void OnDisable()
+    {
+        WaitForAllJobComplete();
+
+        //clear out all the data collected
+        obstacle_NA.Dispose();
+        boidData_NA.Dispose();
+        boidData_NA_dbl.Dispose();
+        boidTargetDir.Dispose();
+        boidTargetVel.Dispose();
+        boidData_NA_E.Dispose();
+
+        //remove all the boids spawned
+        foreach (var item in boidList)
+        {
+            Destroy(item);
+        }
+
+
+        boidList.Clear();
     }
     #endregion
 
@@ -128,8 +151,14 @@ public class FlockHandler : MonoBehaviour
         }
     }
 
-    void Initialize()
+    public void Initialize()
     {
+        Debug.Log("INITIALIZING BOID SIMULATION (JOB)");
+        boidCount = 0;
+        friendlyCount = 0;
+        enemyCount = 0;
+
+        boidList = new();
         transformArray = new(0);
 
         obstacleCount = obstacles.Length;
@@ -142,7 +171,7 @@ public class FlockHandler : MonoBehaviour
         boidTargetDir = new(maxNumOfBoids, Allocator.Persistent);
         boidTargetVel = new(maxNumOfBoids, Allocator.Persistent);
         boidData_NA_E = new(maxNumOfBoids, Allocator.Persistent);
-        
+
 
         #region Bounds settings
         boundsMinX = box.bounds.min.x;
@@ -189,7 +218,7 @@ public class FlockHandler : MonoBehaviour
     {
         float x = Random.Range(boundsMinX, boundsMaxX);
         float y = Random.Range(boundsMinY, boundsMaxY);
-        
+
         obs.transform.position = new(x, y);
     }
 
@@ -199,19 +228,20 @@ public class FlockHandler : MonoBehaviour
     {
         for (int i = 0; i < flocks.Count; i++)
         {
-            AddBoids(flocks[i].PrefabBoid, flocks[i].numBoids,flocks[i].isPredator);
+            AddBoids(flocks[i].PrefabBoid, flocks[i].numBoids, flocks[i].isPredator);
         }
     }
 
     //adding the number of boids at the start
-    void AddBoids(GameObject prefab,int n,bool isPredator)
+    void AddBoids(GameObject prefab, int n, bool isPredator)
     {
         for (int i = 0; i < n; i++)
         {
             //get random x,y value
             float x = Random.Range(boundsMinX, boundsMaxX);
             float y = Random.Range(boundsMinY, boundsMaxY);
-            GameObject boidObj = Instantiate(prefab,new Vector3(x,y),Quaternion.identity);
+            GameObject boidObj = Instantiate(prefab, new Vector3(x, y), Quaternion.identity);
+            boidList.Add(boidObj);
             transformArray.Add(boidObj.transform);
 
             boidData_NA[boidCount] = new BoidData
@@ -219,7 +249,7 @@ public class FlockHandler : MonoBehaviour
                 pos = new(x, y),
                 dir = Vector3.zero,
                 spd = maxSpd,
-                type = isPredator? BoidType.ENEMY:BoidType.FRIENDLY
+                type = isPredator ? BoidType.ENEMY : BoidType.FRIENDLY
             };
 
             if (isPredator)
@@ -232,7 +262,6 @@ public class FlockHandler : MonoBehaviour
                     type = BoidType.ENEMY
                 };
                 boidObj.name = "BoidE_" + enemyCount;
-
                 enemyCount++;
             }
             else
@@ -259,6 +288,7 @@ public class FlockHandler : MonoBehaviour
             float y = Random.Range(boundsMinY, boundsMaxY);
             GameObject boidObj = Instantiate(prefab, new Vector3(x, y), Quaternion.identity);
             transformArray.Add(boidObj.transform);
+            boidList.Add(boidObj);
             boidData_NA[boidCount] = new BoidData
             {
                 pos = new(x, y),
@@ -301,7 +331,7 @@ public class FlockHandler : MonoBehaviour
                 boundsMinY = boundsMinY,
                 boundsMaxY = boundsMaxY,
                 weightAvoidObstacles = weightAvoidObs,
-                bounceOffWall = bounceWall           
+                bounceOffWall = bounceWall
             };
 
             moveJobHandle = moveJob.Schedule(transformArray);
@@ -358,7 +388,7 @@ public class FlockHandler : MonoBehaviour
             }
 
             //change to random tick
-            yield return new WaitForSeconds(Random.Range(0,5f));
+            yield return new WaitForSeconds(Random.Range(0, 5f));
         }
     }
 
@@ -375,6 +405,11 @@ public class FlockHandler : MonoBehaviour
     [BurstCompile]
     struct MoveJob : IJobParallelForTransform
     {
+        //uses the parallefortransform job to handle
+        //movement of the boids
+        //this job allows access to the transform of the gameobject we
+        //want to modify
+
         [NativeDisableContainerSafetyRestriction]
         public NativeArray<BoidData> boids;
         [NativeDisableContainerSafetyRestriction]
@@ -419,7 +454,7 @@ public class FlockHandler : MonoBehaviour
             //apply the rule and check if they should replace the direction
             dir = CrossBorder(dir, transform);
             dir = AvoidObstacle(dir, transform);
-            dir = AvoidEnemies(dir, transform, index);
+            //dir = AvoidEnemies(dir, transform, index);
             dir.Normalize();
 
             //unsure yet
@@ -454,7 +489,7 @@ public class FlockHandler : MonoBehaviour
             };
 
 
-            if(type == BoidType.ENEMY)
+            if (type == BoidType.ENEMY)
             {
                 enemies[index - friendlyCount] = new BoidData
                 {
@@ -516,7 +551,7 @@ public class FlockHandler : MonoBehaviour
             return tarDir;
         }
 
-        Vector3 AvoidObstacle(Vector3 tarDir,TransformAccess transform)
+        Vector3 AvoidObstacle(Vector3 tarDir, TransformAccess transform)
         {
             for (int i = 0; i < obstacleCount; i++)
             {
@@ -533,7 +568,7 @@ public class FlockHandler : MonoBehaviour
                     tarDir += (avoidDir * weightAvoidObstacles);
 
                     //normalize it
-                    tarDir.Normalize();                    
+                    tarDir.Normalize();
                 }
             }
 
@@ -541,8 +576,10 @@ public class FlockHandler : MonoBehaviour
             return tarDir;
         }
 
-        Vector3 AvoidEnemies(Vector3 tarDir, TransformAccess transform,int index)
+        Vector3 AvoidEnemies(Vector3 tarDir, TransformAccess transform, int index)
         {
+            //big hit on performance...
+            //would want to optimize this more before activating
             for (int j = 0; j < enemies.Length; j++)
             {
                 float dist = (
@@ -555,7 +592,7 @@ public class FlockHandler : MonoBehaviour
                     float speed = boids[index].spd + dist * sepWeight;
                     speed /= 2.0f;
 
-                    tarDir += avoidDirection * sepWeight;       
+                    tarDir += avoidDirection * sepWeight;
                 }
 
             }
@@ -626,7 +663,7 @@ public class FlockHandler : MonoBehaviour
 
                     separationDir += targetDirection;
                     separationSpeed += dist * weightSeparation;
-                    
+
                 }
             }
 
@@ -643,8 +680,8 @@ public class FlockHandler : MonoBehaviour
             Vector3 dir = flockDir * speed * (useAlignmentRule ? weightAlignment : 0.0f) +
                           separationDir * separationSpeed * (useSeparationRule ? weightSeparation : 0.0f) +
                           (steerPos - boids[index].pos) * (useCohesionRule ? weightCohesion : 0.0f);
-            
-            
+
+
             boidTargetVel[index] = dir;
         }
     }
