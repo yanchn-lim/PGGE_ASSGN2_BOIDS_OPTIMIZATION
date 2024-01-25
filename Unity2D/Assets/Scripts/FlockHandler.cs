@@ -10,7 +10,6 @@ using UnityEngine.Jobs;
 public class FlockHandler : MonoBehaviour
 {
     #region REFERENCES
-    //public FlockBehaviour fb;
     [SerializeField]
     BoxCollider2D box;
 
@@ -131,6 +130,7 @@ public class FlockHandler : MonoBehaviour
         boidTargetDir.Dispose();
         boidTargetVel.Dispose();
         boidData_NA_E.Dispose();
+        transformArray.Dispose();
 
         //remove all the boids spawned
         foreach (var item in boidList)
@@ -402,6 +402,11 @@ public class FlockHandler : MonoBehaviour
     }
 
     #region Jobs
+    //using [NativeDisableContainerSafetyRestriction] allows
+    //me to use disable the safety restriction set by unity
+    //bypass some safety checks in order to get a better performing
+    //implementation
+
     [BurstCompile]
     struct MoveJob : IJobParallelForTransform
     {
@@ -454,7 +459,10 @@ public class FlockHandler : MonoBehaviour
             //apply the rule and check if they should replace the direction
             dir = CrossBorder(dir, transform);
             dir = AvoidObstacle(dir, transform);
+
+            //major performance hit
             //dir = AvoidEnemies(dir, transform, index);
+
             dir.Normalize();
 
             //unsure yet
@@ -599,6 +607,7 @@ public class FlockHandler : MonoBehaviour
             return tarDir;
         }
     }
+
     [BurstCompile]
     struct FlockJob : IJobParallelFor
     {
@@ -634,10 +643,12 @@ public class FlockHandler : MonoBehaviour
 
         public void Execute(int index)
         {
+            //clean slate of vectors
             Vector3 flockDir = Vector3.zero;
             Vector3 separationDir = Vector3.zero;
             Vector3 steerPos = Vector3.zero;
 
+            //clean slate of values
             float speed = 0.0f;
             float separationSpeed = 0.0f;
             int count = 0;
@@ -646,6 +657,8 @@ public class FlockHandler : MonoBehaviour
             for (int j = 0; j < boidCount; ++j)
             {
                 float dist = (boids[index].pos - boids[j].pos).magnitude; //checking the distance between them
+
+                //check if they are within range and adds them up
                 if (index != j && dist < visibility)
                 {
                     speed += boids[j].spd;
@@ -667,6 +680,7 @@ public class FlockHandler : MonoBehaviour
                 }
             }
 
+            //normalizing the vector magnitude
             if (count > 0)
             {
                 speed = speed / count;
@@ -685,10 +699,13 @@ public class FlockHandler : MonoBehaviour
             boidTargetVel[index] = dir;
         }
     }
+
     [BurstCompile]
     struct RandMoveJob : IJobParallelForTransform
     {
+        [NativeDisableContainerSafetyRestriction]
         public NativeArray<Vector3> targetDir;
+        [NativeDisableContainerSafetyRestriction]
         public NativeArray<BoidData> boids;
 
         public float maxSpd;
@@ -698,8 +715,11 @@ public class FlockHandler : MonoBehaviour
 
         public void Execute(int index, TransformAccess transform)
         {
+            //assign a random float
             float rand = random.NextFloat(0.0f, 1.0f);
             targetDir[index].Normalize();
+
+            
             float angle = Mathf.Atan2(targetDir[index].y, targetDir[index].x);
 
             if (rand > 0.5f)
@@ -710,6 +730,7 @@ public class FlockHandler : MonoBehaviour
             {
                 angle -= Mathf.Deg2Rad * 45.0f;
             }
+
             Vector3 dir = Vector3.zero;
             dir.x = Mathf.Cos(angle);
             dir.y = Mathf.Sin(angle);
