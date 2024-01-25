@@ -93,8 +93,6 @@ public class Autonomous : MonoBehaviour
             Speed = MaxSpeed;
 
         transform.Translate(Vector3.right * Speed * Time.deltaTime, Space.Self);
-
-        //transform.Translate(Vector3.right * data.Speed * Time.deltaTime, Space.Self);
     }
 }
 
