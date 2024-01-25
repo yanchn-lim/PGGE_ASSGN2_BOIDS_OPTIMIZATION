@@ -55,7 +55,15 @@ public class ToggleHandler : MonoBehaviour
 
     public void CSToggle()
     {
-
+        if (csToggle.isOn)
+        {
+            csFlock.gameObject.SetActive(true);
+            csFlock.Initialize();
+        }
+        else
+        {
+            csFlock.gameObject.SetActive(false);
+        }
 
         ui.StartCS(csToggle.isOn);
     }

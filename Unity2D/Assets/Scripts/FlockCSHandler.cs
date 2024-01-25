@@ -47,19 +47,15 @@ public class FlockCSHandler : MonoBehaviour
 
     #region Arrays
     List<bd> boidL;
+    List<GameObject> boidObjList;
     #endregion
 
     Move m;
     TransformAccessArray transformArray;
+
     #region MONOBEHAVIOUR METHODS
 
-    private void Awake()
-    {
-        Initialize();
-        CreateFlocks();
-    }
-
-    void Initialize()
+    public void Initialize()
     {
         boundsMinX = box.bounds.min.x;
         boundsMaxX = box.bounds.max.x;
@@ -83,7 +79,10 @@ public class FlockCSHandler : MonoBehaviour
         bounceWall = f.bounceWall;
 
         boidL = new();
+        boidObjList = new();
         transformArray = new(0);
+
+        CreateFlocks();
     }
 
     private void Update()
@@ -95,6 +94,20 @@ public class FlockCSHandler : MonoBehaviour
         };
         JobHandle moveJobHandle = m.Schedule(transformArray);
         moveJobHandle.Complete();
+    }
+
+    private void OnDisable()
+    {
+        boidL.Clear();
+
+        foreach (var item in boidObjList)
+        {
+            Destroy(item);
+        }
+
+        boidObjList.Clear();
+        transformArray.Dispose();
+        currNum = 0;
     }
 
     #endregion
@@ -120,6 +133,8 @@ public class FlockCSHandler : MonoBehaviour
         GameObject boidObj = Instantiate(prefab, new Vector3(x, y), Quaternion.identity);
         boidObj.name = $"Boid_{currNum}";
 
+        boidObjList.Add(boidObj);
+
         currNum++;
         boidL.Add(new bd
         {
@@ -132,26 +147,44 @@ public class FlockCSHandler : MonoBehaviour
     }
 
 
-
     #region SHADER METHODS
     void Calculate()
     {
         int kernelIndex = cs.FindKernel("CSMain");
         ComputeBuffer buffer = new(currNum,28);
         buffer.SetData(boidL);
-        cs.SetBuffer(kernelIndex,"Result",buffer);
+
+        //setting the data in the shader
+        cs.SetBuffer(kernelIndex,"Boid",buffer);
+
         cs.SetInt("size",currNum);
+
+        cs.SetBool("useAlignmentRule",useAlignmentRule);
+        cs.SetBool("useSeparationRule",useSeparationRule);
+        cs.SetBool("useCohesionRule",useCohesionRule);
+
+
         cs.SetFloat("timeDelta", Time.deltaTime);
+        cs.SetFloat("visibility", visibility);
+        cs.SetFloat("weightSep",weightSep);
+        cs.SetFloat("weightAlign",weightAlign);
+        cs.SetFloat("weightCoh",weightCoh);
+        cs.SetFloat("sepDistance",sepDist);
+
+        //assigning the correct thread per group
         int tpg = Mathf.CeilToInt(currNum / 8);
         cs.Dispatch(kernelIndex, tpg, tpg, 1);
+
         bd[] b = new bd[currNum];
         buffer.GetData(b);
         boidL = new(b);
-        Debug.Log(boidL[0].pos);
+
+        buffer.Dispose();
     }
     #endregion
 
 
+    [BurstCompile]
     struct Move : IJobParallelForTransform
     {
         public NativeArray<bd> a;

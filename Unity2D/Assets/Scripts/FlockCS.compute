@@ -9,18 +9,82 @@ struct BoidData
 };
 
 int size;
+
+bool useAlignmentRule;
+bool useSeparationRule;
+bool useCohesionRule;
+
 float timeDelta;
-RWStructuredBuffer<BoidData> Result;
+
+float visibility;
+float sepDistance;
+float weightSep;
+float weightAlign;
+float weightCoh;
+
+RWStructuredBuffer<BoidData> Boid;
+
+float3 Flock(BoidData a,int index)
+{
+    float3 flockDir = float3(0, 0, 0);
+    float3 sepDir = float3(0, 0, 0);
+    float3 steerPos = float3(0, 0, 0);
+    
+    float speed = 0.0f;
+    float separationSpeed = 0.0f;
+    int count = 0;
+    
+    for (int i = 0; i < size; i++)
+    {
+        BoidData b = Boid[i];
+        
+        float dist = length(a.pos - b.pos);
+
+        if (index != i && dist < visibility)
+        {
+            speed += b.spd;
+            flockDir += b.dir;
+            steerPos += b.pos;
+            count++;
+        }
+        
+        if (index != i && dist < sepDistance)
+        {
+            float3 targetDirection = normalize(a.pos - b.pos);
+
+            sepDir += targetDirection;
+            separationSpeed += dist * weightSep;
+        }
+        
+        if (count > 0)
+        {
+            speed = speed / count;
+            flockDir = flockDir / count;
+            flockDir = normalize(flockDir);
+
+            steerPos = steerPos / count;
+        }
+
+
+        //boidTargetVel[index] = dir;
+    }
+    float3 dir = flockDir * speed * (useAlignmentRule ? weightAlign : 0.0f) +
+                          sepDir * separationSpeed * (useSeparationRule ? weightSep : 0.0f) +
+                          (steerPos - a.pos) * (useCohesionRule ? weightCoh : 0.0f);
+    return dir;
+}
 
 [numthreads(8,8,1)]
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
     // TODO: insert actual code here!
     int index = id.x + id.y * size;
-    float3 d = float3(1, 0, 0);
-    float s = 5;
+    float3 d = float3(1,0,0);
+    float s = 1;
     
-    Result[index].dir = d;
-    Result[index].spd = s;
-    Result[index].pos += d * s * timeDelta;
+    //d += normalize(Flock(Boid[index], index));
+    
+    //Boid[index].dir = normalize(d);
+    Boid[index].spd = s;
+    Boid[index].pos += d * s * timeDelta;
 }
